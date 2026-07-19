@@ -14,6 +14,14 @@ Historical versions, year by year, are published as tags, currently only 2019 an
 
 The master branch currently contains limits as of June 2023.
 
+# Canonical home
+
+This repository lives at
+[`guglielmo/geojson-italy`](https://github.com/guglielmo/geojson-italy).
+It was previously hosted at `openpolis/geojson-italy`; old links redirect here.
+Please update any pinned raw/CDN URLs to point to this repository.
+
+
 # Attribution
 The original administrative limits data are copyrighted by ISTAT, that releases them under the CC-BY license.
 The data generated and published here are released under the same CC-BY license.
