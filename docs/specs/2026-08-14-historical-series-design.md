@@ -298,18 +298,33 @@ only identity.**
 > **17 March 1861**, against 1991 for the derived reconstruction.
 >
 > This matters beyond removing a dependency. The reconstruction does not hold data ISTAT
-> lacks; it holds an *interpretation* of ISTAT's variation records — and at least one is
-> wrong. It reads any record classified `ES` carrying a related code as a merger into that
-> code. For Baranzate the 2003 `ES` record concluded its detachment from Bollate, not a
-> merger back into it, so the reconstruction records a municipality that still exists as
-> extinct since 2003. Reading the source ourselves lets us fail on an ambiguous
-> classification instead of assuming one, which is what §6's "any further case must fail the
-> build" already asks for.
+> lacks; it holds a *partial reading* of ISTAT's variation records. Its transform keeps only
+> records classified `ES` (extinction) and ignores `CS` (constitution), so a municipality
+> that was extinguished and later re-established is recorded as extinct and never comes
+> back. **Baranzate** is exactly that case: constituted 2001-12-12, genuinely extinguished
+> 2003-03-06 when the Constitutional Court struck down the regional law that created it
+> (sentenza 47/2003), then re-established 2004-06-08 by a new regional law. The extinction
+> is real; the omission is the resurrection.
 >
-> **Not yet verified**: the record layout and the full `DESC_COD_VARIAZIONE` taxonomy, since
-> `situas-servizi.istat.it` was returning 503 when this was written. Until that is read, it
-> is not established that every case is distinguishable — which is precisely where the
-> derived reconstruction went wrong, so it is the check that matters most.
+> **Verified 14 August 2026** — the layout and taxonomy have since been read. Report `129`
+> carries 2,356 records with `COD_CATASTO` and `COD_CATASTO_REL` (our key on both sides),
+> the effective date, the enacting act and its text. The taxonomy is closed and every record
+> has a related code:
+>
+> | Code | Meaning | Records |
+> | --- | --- | --- |
+> | `AP` | Change of province | 964 |
+> | `ES` | Extinction | 348 |
+> | `CS` | Constitution | 342 |
+> | `RN` | Statistical code renumbering | 222 |
+> | `CE` / `AQ` | Territory ceded / acquired | 197 each |
+> | `CD` | Name change | 50 |
+> | `AQES` | Acquisition by extinction | 21 |
+> | `CECS` | Cession for constitution of a new unit | 15 |
+>
+> One consequence for §6: **detachments no longer need enumerating**. All 342 `CS` records
+> carry their predecessor, so Fonte Nuova (two `CS`, from Guidonia Montecelio and Mentana),
+> Mappano (four) and Misiliscemi (one, from Trapani) are derivable rather than hardcoded.
 
 | Layer | Source |
 | --- | --- |
