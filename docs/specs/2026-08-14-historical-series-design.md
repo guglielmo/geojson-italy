@@ -82,12 +82,19 @@ forbidden.
 
 **Exact-equality interval collapsing is used, and is what makes the archive affordable.**
 ISTAT re-generalises its geometries only in some editions — 2002, 2010, 2011, 2012, 2019,
-2021, 2022 and 2025 — and in the intervening years republishes them byte-identically, so only
+2022 and 2025 — and in the intervening years republishes them byte-identically, so only
 administratively affected municipalities differ. Reading all 26 editions and merging
 consecutive identical geometries into one validity interval is therefore lossless: it discards
-no published geometry, only repetitions of it. This is what reduces roughly 205,000
-edition-instances to about 74,600 versions and 209 MB. It does not offend D2, which forbids
+no published geometry, only repetitions of it. It does not offend D2, which forbids
 altering published geometry, not storing it once.
+
+> **Measured, August 2026** — see
+> [2026-08-14-edition-measurements.md](2026-08-14-edition-measurements.md). Reading the
+> editions directly gives **208,572 instances collapsing to 68,428 versions (3.05×)**,
+> against the ~205,000 → ~74,600 estimated here from MAPS. **2021 is not a re-generalising
+> edition**: it appeared to be one only because MAPS had ingested the census product in
+> place of the annual edition, and that single artefact accounts for most of the ~6,000
+> version difference. 2020 → 2021 changes 4.7% of geometries, an ordinary year.
 
 **Tolerance-based deduplication is excluded by D2.** It would collapse far more — 224 of 250
 sampled municipalities differ by less than 0.01% of area between the 2011 and 2012 editions,
@@ -225,9 +232,9 @@ Distinguishes administrative change from source re-generalisation:
 | `source_regeneralization` | ISTAT republished the geometry with different vertices; no administrative change. |
 
 This field exists because without it the archive is faithful but uninterpretable. ISTAT
-re-generalises in some editions and not others — measured: 2002, 2010, 2011, 2012, 2019,
-2021, 2022 and 2025 show a full set of changed geometries, while intervening years change
-only administratively affected municipalities. A consumer diffing 2011 against 2012 without
+re-generalises in some editions and not others — measured against the annual editions:
+2002, 2010, 2011, 2012, 2019, 2022 and 2025 show a full set of changed geometries, while
+intervening years change only administratively affected municipalities. A consumer diffing 2011 against 2012 without
 this field sees roughly 7,900 changed boundaries and concludes something historic happened.
 With it, they can filter to the handful that actually changed.
 
@@ -280,15 +287,23 @@ Three reasons this is better than sourcing geometry through MAPS:
    to tautological. Fidelity stops being a property of a pipeline and becomes a property of a
    download.
 3. **No inherited quirks.** The MAPS geometry table carries artefacts of its own ingestion —
-   the 2021 edition loaded from the census product rather than the annual one, which fabricates
-   a 3.5% to 12% discontinuity across every municipality; and Misiliscemi given a geometry
-   dated 2021-01-01, before it legally existed. Reading ISTAT directly avoids both without
-   asking anyone to fix them.
+   the 2021 edition loaded from the census product rather than the annual one; and Misiliscemi
+   given a geometry dated 2021-01-01, before it legally existed. Reading ISTAT directly avoids
+   both without asking anyone to fix them.
 
-ISTAT coverage is complete and verified: annual editions resolve for every year from 2001 to
-2026. The "2002–2010 unavailable" gap recorded in the MAPS ingestion code does not exist —
-`Limiti01012003_g.zip`, `…2005…`, `…2007…` and `…2009…` all return 11.7–12.5 MB. For 2001 and
+   Measured since: of the 7,901 municipalities present in both 2021 editions, **not one has
+   the same geometry** — but the typical discrepancy is 0.77% of area (median; 4.28% at the
+   95th percentile, 38.88% at most), not the 3.5%–12% stated earlier. The substitution is
+   universal and the two files are plainly different products; the magnitude was overstated.
+
+ISTAT coverage is complete and verified: all 26 editions from 2001 to 2026 were downloaded
+in August 2026, with checksums recorded in `build/editions/MANIFEST.json`. The
+"2002–2010 unavailable" gap recorded in the MAPS ingestion code does not exist. For 2001 and
 2011 only the census edition exists, so it is the source for those two years by necessity.
+
+URL resolution lives in `scripts/istat_editions.py`, which knows the three shapes ISTAT
+uses — `Limiti0101<YYYY>_g.zip`, the same nested under a year directory from 2022, and the
+census form `Limiti<YYYY>_g.zip` — and always prefers the annual edition where both exist.
 
 One discontinuity is **kept, not fixed**: between the 2022 and 2025 editions ISTAT genuinely
 reduced detail (annual file 11.9 MB in 2022 against 10.4 MB in 2025 and 2026). Under D2 this
