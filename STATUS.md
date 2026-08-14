@@ -4,9 +4,10 @@ Maintenance status and work plan for this repository. Updated as work progresses
 
 ## Where things stand
 
-The published data are the **1 January 2026** ISTAT vintage (tag `2026.1`), which resolved
-issues #15, #18 and #23 and corrected cp1252 corruption in two municipality names.
-Maintenance was effectively paused between mid-2024 and mid-2026.
+The published data are the **1 January 2026** ISTAT vintage. Release `2026.1` resolved
+issues #15, #18 and #23 and corrected cp1252 corruption in two municipality names;
+`2026.2` added the ISO 3166-2 codes (#22) without touching geometry. Maintenance was
+effectively paused between mid-2024 and mid-2026.
 
 That release also replaced the manual rebuild of `comuni.geojson` with
 `scripts/fetch_sources.sh` and `scripts/build_comuni.py`, covered by unit tests and by
@@ -14,7 +15,7 @@ per-issue acceptance checks in `tests/`. The province loop bound is now derived 
 data rather than hardcoded: left at `111`, it would have dropped all of Sardinia without
 producing an error.
 
-The substantial work ahead is the historical series — priority 2 below, tracked under the
+The substantial work ahead is the historical series — priority 1 below, tracked under the
 `historical-series` milestone.
 
 The repository moved from `openpolis/geojson-italy` to
@@ -25,14 +26,7 @@ should be updated to the current owner and branch.
 
 ## Priorities, in order
 
-### 1. ISO-3166-2 codes (#22)
-
-Add ISO-3166-2 identifiers for regions and provinces. Low cost, and it is the prerequisite
-for anything that consumes these files alongside international datasets — including
-priority 2. It also supersedes #14 (region abbreviations), since ISO-3166-2 is the
-standardised identifier that request was reaching for.
-
-### 2. Historical series, 2001 onward (`historical-series` milestone)
+### 1. Historical series, 2001 onward (`historical-series` milestone)
 
 The largest piece of work, and the one that returns the repository to its original intent:
 serving boundaries at any past date, not only the current one. Design in
@@ -64,7 +58,7 @@ to releases. Publishing only 1 January editions would be wrong rather than merel
 of those 58 dates fall inside the year, so an annual series returns plausible, false answers
 for them.
 
-### 3. Interoperability with world-geojson (exploratory)
+### 2. Interoperability with world-geojson (exploratory)
 
 [`georgique/world-geojson`](https://github.com/georgique/world-geojson) provides global
 coverage and currently has **no subnational breakdown for Italy** — only a country outline
@@ -106,6 +100,16 @@ near-homonymous Barbagia municipalities that ended up in different provinces; th
 case a hand-written crosswalk gets wrong. Cagliari's metropolitan city draws only 17 of its
 70 municipalities from the former province 92.
 
+**ISO 3166-2:IT does not cover five of the 110 second-level units**, so `prov_iso_3166_2`
+is null for Valle d'Aosta and for the four Sardinian provinces created in 2026 (Gallura
+Nord-Est, Ogliastra, Medio Campidano, Sulcis Iglesiente). The Sardinian four bear the
+vehicle plates of provinces ISO *deleted* in April 2019 — OT, OG, VS, CI — which makes
+filling the gap look trivial and makes it wrong: those codes are withdrawn, not free.
+Gorizia, Pordenone, Trieste and Udine are the opposite case, deleted in 2019 and restored
+in 2020 as decentralized regional entities, so they do carry codes. Revisit when ISO
+registers the Sardinian units; `scripts/iso_3166_2.py` documents each gap and the tables
+are checked against the `iso-codes` package on every test run.
+
 **The ISTAT boundary edition and the codes spreadsheet are not in step.** The edition is
 frozen at 1 January; the spreadsheet tracks the present. Municipalities suppressed in
 between appear in one and not the other — three of them in the 2026.1 build. The build
@@ -124,5 +128,6 @@ declining these again.
 - **Postal code (CAP) boundaries (#21).** Italian postal codes are proprietary to Poste
   Italiane and are not in the public domain, so they cannot be redistributed here.
 - **Non-standard abbreviations (#14).** Only identifiers backed by a national or
-  international standard are added to the metadata; see priority 2 for the standards-based
-  alternative.
+  international standard are added to the metadata. `reg_iso_3166_2` and
+  `prov_iso_3166_2`, added in `2026.2`, are the standards-based alternative that request
+  was reaching for.

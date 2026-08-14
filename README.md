@@ -80,13 +80,27 @@ Each geographic area has the following metadata:
 - `op_id` (M) - the openpolis ID (for integration with legacy OP data)
 - `opdm_id` (M) - the opdm ID (for integration with OPDM data)
 - `minint_elettorale` (M) - interior minister ID
+- `minint_finloc` (M) - interior minister ID used in the financial statements (Finanza Locale)
 - `prov_name` (M,P) - parent province name
 - `prov_istat_code` (M,P) - parent province ISTAT code, as text (zero-padded)
 - `prov_istat_code_num` (M,P) - parent province ISTAT code, as integer
 - `prov_acr` (M,P,R) - parent province acronym (ex: RM)
+- `prov_iso_3166_2` (M,P) - parent province [ISO 3166-2](https://en.wikipedia.org/wiki/ISO_3166-2:IT) code (ex: IT-RM), **or `null`** — see below
 - `reg_name` (M,P,R) - parent region full name
 - `reg_istat_code` (M,P,R) - parent region ISTAT code, as text (zero padded)
 - `reg_istat_code_num` (M,P,R) - parent region ISTAT code, as number
+- `reg_iso_3166_2` (M,P,R) - parent region ISO 3166-2 code (ex: IT-62 for Lazio)
+
+Note that ISO numbers the regions on a scheme of its own, unrelated to the ISTAT one:
+Piedmont is ISTAT `01` and ISO `IT-21`.
+
+`prov_iso_3166_2` is `null` for five of the 110 second-level units, because ISO 3166-2:IT
+does not currently define a code for them: **Valle d'Aosta** (the region exercises
+provincial functions, so `IT-AO` was deleted in 2019) and the four Sardinian units created
+by the 2026 reform — **Gallura Nord-Est Sardegna**, **Ogliastra**, **Medio Campidano** and
+**Sulcis Iglesiente**. Their vehicle plates match codes ISO withdrew in April 2019, so
+reusing them would assert an identifier the standard no longer defines. 175 municipalities
+are affected; they still carry `reg_iso_3166_2`.
 
 In parenthesis, the contexts where these properties can be found:
 - M: Municipalities,

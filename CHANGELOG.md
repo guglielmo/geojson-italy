@@ -4,6 +4,43 @@ All notable changes to this project will be documented in this file.
 
 Releases will be tagged with year[.version].
 
+## [2026.2] August 2026
+ISO 3166-2 codes for regions and second-level units (#22). Same boundaries as `2026.1`:
+this release adds metadata and changes no geometry.
+
+Two new properties, additive and safe for existing consumers:
+
+- `reg_iso_3166_2` — present on all 20 regions. Note that ISO numbers the regions on its
+  own scheme, unrelated to the ISTAT one: Piedmont is ISTAT `01` and ISO `IT-21`.
+- `prov_iso_3166_2` — present on 105 of the 110 second-level units, `null` on the other
+  five. Where present it is the vehicle plate prefixed, e.g. `IT-TO`, `IT-RM`.
+
+They appear on municipality features and, through the dissolve, on
+`limits_IT_provinces` and `limits_IT_regions` as well.
+
+**Why five units carry `null`.** Publishing a code the standard does not define would make
+the field useless for the interoperability it exists to serve, so the gaps are left honest:
+
+| Unit | Plate | Why |
+| --- | --- | --- |
+| Valle d'Aosta | AO | `IT-AO` deleted 22 November 2019 — the region exercises provincial functions itself, so there is no province to code. ISTAT keeps `COD_PROV 007` for statistical continuity. |
+| Gallura Nord-Est Sardegna | OT | Created 1 January 2026. `IT-OT` was deleted 9 April 2019 with the old Olbia-Tempio and never restored. |
+| Ogliastra | OG | Re-created 1 January 2026. `IT-OG` deleted 9 April 2019. |
+| Medio Campidano | VS | Re-created 1 January 2026. `IT-VS` deleted 9 April 2019. |
+| Sulcis Iglesiente | CI | Created 1 January 2026. `IT-CI` was deleted 9 April 2019 with the old Carbonia-Iglesias. |
+
+The four Sardinian units bear the plates of provinces ISO deleted in 2019. Reusing those
+codes would assert an identifier the standard has withdrawn, so they wait until ISO
+registers the new units. 175 municipalities are affected; all of them still carry
+`reg_iso_3166_2` = `IT-88`, since the region's code is unaffected.
+
+By contrast Gorizia, Pordenone, Trieste and Udine **do** carry codes: deleted in April 2019
+along with the others, they were restored on 22 November 2020 as decentralized regional
+entities.
+
+The reference tables live in `scripts/iso_3166_2.py` and are checked against the
+`iso-codes` package on every test run, so drift fails the build rather than shipping.
+
 ## [2026.1] August 2026
 Boundaries updated to the ISTAT vintage of 1 January 2026 (7,896 municipalities).
 

@@ -106,9 +106,19 @@ Two deliberately asymmetric derivation paths:
 - **Filenames are not zero-padded** (`limits_P_58_municipalities.geojson`), while the
   `prov_istat_code` / `reg_istat_code` *properties* are (`"058"`). Both forms exist on
   purpose; `*_istat_code_num` is the integer used by `-filter`.
-- Municipality features carry `minint_finloc` in addition to the properties documented in
-  the README; it propagates into all municipality-level outputs but is absent from the
-  dissolved province/region files (only `copy-fields` survives a dissolve).
+- Municipality-only properties (`op_id`, `opdm_id`, `minint_*`, `com_*`) propagate into all
+  municipality-level outputs but are absent from the dissolved province/region files —
+  only `copy-fields` survives a dissolve. **Any new
+  property must be added to `copy-fields` in both generation scripts** or it silently
+  fails to reach `limits_IT_provinces` and `limits_IT_regions`.
+- **`prov_iso_3166_2` is null for five units, and that is correct.** ISO 3166-2:IT does not
+  define a code for Valle d'Aosta (deleted 2019, the region exercises provincial functions)
+  nor for the four Sardinian provinces created in 2026. The Sardinian four carry the plates
+  OT, OG, VS and CI — codes ISO *deleted* in April 2019 — so filling the gap from
+  `prov_acr` looks obvious and publishes withdrawn identifiers. `scripts/iso_3166_2.py`
+  enumerates the valid set rather than deriving it, and its `UNCOVERED` table documents
+  each gap. The tables are verified against the `iso-codes` package by
+  `tests/test_iso_3166_2.py`, so an edit that invents a code fails the suite.
 
 ## Release cycle
 
