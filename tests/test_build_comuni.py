@@ -3,7 +3,13 @@ import json
 import openpyxl
 import pytest
 
-from scripts.build_comuni import build_properties, read_catasto_codes
+from scripts.build_comuni import (
+    LEGACY_FIELDS,
+    build_properties,
+    merge_legacy,
+    read_catasto_codes,
+    read_legacy_by_catasto,
+)
 
 
 @pytest.fixture
@@ -113,3 +119,48 @@ def test_build_properties_preserves_the_published_key_order():
         "reg_name", "reg_istat_code", "reg_istat_code_num",
         "opdm_id", "com_catasto_code", "com_istat_code", "com_istat_code_num",
     ]
+
+
+def test_read_legacy_by_catasto_keys_on_cadastral_code(tmp_path):
+    previous = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {
+                    "name": "Aggius",
+                    "com_catasto_code": "A069",
+                    "com_istat_code": "090001",
+                    "op_id": "1234",
+                    "opdm_id": "abcd",
+                    "minint_elettorale": "1010810010",
+                    "minint_finloc": "1010810010",
+                },
+                "geometry": None,
+            }
+        ],
+    }
+    path = tmp_path / "previous.geojson"
+    path.write_text(json.dumps(previous))
+
+    legacy = read_legacy_by_catasto(path)
+
+    # Keyed on the cadastral code, so the Sardinian recoding 090001 -> 113001
+    # does not break the lookup.
+    assert legacy["A069"]["op_id"] == "1234"
+    assert legacy["A069"]["minint_finloc"] == "1010810010"
+    assert "090001" not in legacy
+
+
+def test_merge_legacy_fills_known_municipality():
+    props = {"name": "Aggius", "com_catasto_code": "A069"}
+    merged, missing = merge_legacy(props, {"A069": {f: "x" for f in LEGACY_FIELDS}})
+    assert merged["op_id"] == "x"
+    assert missing == []
+
+
+def test_merge_legacy_leaves_new_municipality_null():
+    props = {"name": "Bardello con Malgesso e Bregano", "com_catasto_code": "M441"}
+    merged, missing = merge_legacy(props, {})
+    assert all(merged[f] is None for f in LEGACY_FIELDS)
+    assert missing == ["Bardello con Malgesso e Bregano"]

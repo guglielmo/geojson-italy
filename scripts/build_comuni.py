@@ -77,3 +77,37 @@ def build_properties(comune, uts_by_code, region_names, catasto):
         "com_istat_code": istat,
         "com_istat_code_num": int(istat),
     }
+
+
+# Identifiers that exist only in previous releases of this repository. They are
+# not published by ISTAT and cannot be derived, so they are carried across.
+LEGACY_FIELDS = ("op_id", "opdm_id", "minint_elettorale", "minint_finloc")
+
+
+def read_legacy_by_catasto(path):
+    """Return {catasto_code: {legacy field: value}} from a previous release."""
+    features = json.loads(Path(path).read_text())["features"]
+    out = {}
+    for feature in features:
+        props = feature["properties"]
+        catasto = props.get("com_catasto_code")
+        if catasto:
+            out[catasto] = {field: props.get(field) for field in LEGACY_FIELDS}
+    return out
+
+
+def merge_legacy(props, legacy_by_catasto):
+    """Add the legacy identifiers to props.
+
+    Returns (props, missing) where missing lists the names of municipalities
+    with no previous entry. A genuinely new municipality has no openpolis or
+    interior-ministry identifier yet; None is the honest value.
+
+    Assigning to keys build_properties already placed leaves them where they
+    are, which is what keeps the published key order intact.
+    """
+    found = legacy_by_catasto.get(props["com_catasto_code"])
+    merged = dict(props)
+    for field in LEGACY_FIELDS:
+        merged[field] = found[field] if found else None
+    return merged, ([] if found else [props["name"]])
