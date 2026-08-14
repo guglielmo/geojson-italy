@@ -15,10 +15,10 @@ with git tags as the mechanism. That mechanism does not scale — see §3 — an
 for anything before 2019, so the archive has to be built rather than accumulated.
 
 Two sources, each for what only it can provide: ISTAT publishes the geometry for every
-reference date, and the territorial reconstruction built for the MAPS project
-(`gst-maps-pipelines`) holds the date-framed identity history — which entity is which across
-mergers, splits and recodings — which cannot be derived from shapefiles. MAPS is read
-only; see D9.
+reference date, and a date-framed territorial reconstruction — maintained outside this
+repository, and referred to below as the **identity source** — holds the history of which
+entity is which across mergers, splits and recodings, which cannot be derived from
+shapefiles. It is read only; see D9.
 
 ## 2. Decisions
 
@@ -44,7 +44,7 @@ regions and metropolitan cities must remain derivable from the municipality laye
 date — which they are, by dissolve, exactly as today.
 
 **D4 — The temporal dataset is tracked in git** (as opposed to living only in release assets
-or only in the MAPS database). Anyone must be able to reconstruct any snapshot without
+or only in the identity source). Anyone must be able to reconstruct any snapshot without
 credentials to a private database. An archive that only its maintainer can rebuild is an
 archive that has to be taken on trust, which defeats the point of publishing boundaries as
 a common good.
@@ -63,7 +63,7 @@ All figures measured, not estimated.
 
 | Quantity | Value |
 | --- | --- |
-| Municipality geometry versions in MAPS | 74,580 across 25 editions (2001–2025) |
+| Municipality geometry versions in the identity source | 74,580 across 25 editions (2001–2025) |
 | Same, serialised as GeoJSON geometry | 209 MB |
 | One edition | ~22 MB geometry, ~30 MB as complete GeoJSON |
 | Same as region-split GeoJSON with properties | ~280 MB working tree, ~80–90 MB in git history |
@@ -91,9 +91,9 @@ altering published geometry, not storing it once.
 > **Measured, August 2026** — see
 > [2026-08-14-edition-measurements.md](2026-08-14-edition-measurements.md). Reading the
 > editions directly gives **208,572 instances collapsing to 68,428 versions (3.05×)**,
-> against the ~205,000 → ~74,600 estimated here from MAPS. **2021 is not a re-generalising
-> edition**: it appeared to be one only because MAPS had ingested the census product in
-> place of the annual edition, and that single artefact accounts for most of the ~6,000
+> against the ~205,000 → ~74,600 estimated here from the identity source. **2021 is not a
+> re-generalising edition**: it appeared to be one only because that source had ingested the
+> census product in place of the annual edition, and that single artefact accounts for most of the ~6,000
 > version difference. 2020 → 2021 changes 4.7% of geometries, an ordinary year.
 
 **Tolerance-based deduplication is excluded by D2.** It would collapse far more — 224 of 250
@@ -114,7 +114,7 @@ geojson-italy/
 │   ├── INDEX.csv               validity interval -> release tag
 │   └── SCHEMA.md
 └── scripts/
-    ├── build_temporal.py       MAPS -> temporal dataset
+    ├── build_temporal.py       identity source -> temporal dataset
     └── materialize.py          temporal dataset + date -> release assets
 ```
 
@@ -202,17 +202,32 @@ metropolitan cities are derived by dissolve.
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `terr_id` | int | Stable surrogate identity, from MAPS `territories.id`. Survives every recoding. |
+| `terr_key` | string | Stable public identity: the entity's **first cadastral (Belfiore) code**. |
 | `valid_from` | date | Start of this version's validity. |
 | `valid_to` | date | End, exclusive. Null means current. |
 | `version_reason` | enum | Why this version exists — see below. |
 | `source_edition` | string | ISTAT file the geometry came from, e.g. `Limiti01012012_g`. |
 
-`terr_id` is the field this whole design turns on. The Sardinian reform of 1 January 2026
+`terr_key` is the field this whole design turns on. The Sardinian reform of 1 January 2026
 changed all 377 Sardinian `com_istat_code` values with zero overlap, because the municipal
 code embeds the province code. A dataset keyed on the ISTAT code cannot express continuity
-across that event; a dataset keyed on a surrogate can, and the ISTAT code becomes what it
-actually is — a time-scoped attribute.
+across that event; a dataset keyed on a stable identity can, and the ISTAT code becomes what
+it actually is — a time-scoped attribute.
+
+> **Revised 14 August 2026.** This field was first specified as an integer surrogate taken
+> from the identity source. That was wrong: the column is a database sequence assigned at
+> import time, so it renumbers whenever the source is rebuilt and no third party can verify
+> it. Keying a public archive on it would contradict D4.
+>
+> The cadastral code is public — assigned by the Agenzia delle Entrate and republished in
+> ISTAT's `Elenco-comuni-italiani` — and it behaves as a key: measured across the identity
+> source, **8,229 of 8,230 municipalities carry exactly one for their whole life, and no code
+> has ever been used by two entities**. The single exception is **Lonato del Garda**, `E667`
+> until 2008 and `M312` after.
+>
+> Hence: `terr_key` is the entity's **first** cadastral code and never changes, while
+> `com_catasto_code` stays a time-scoped attribute. For every municipality but Lonato del
+> Garda the two coincide at every date. No internal surrogate is published.
 
 `source_edition` is what makes D2 checkable. A third party can download the named ISTAT file
 and verify the geometry byte for byte. Without it, fidelity to the source is a claim rather
@@ -238,8 +253,8 @@ intervening years change only administratively affected municipalities. A consum
 this field sees roughly 7,900 changed boundaries and concludes something historic happened.
 With it, they can filter to the handful that actually changed.
 
-Populated from MAPS `territory_relationships` (338 succession rows), `territories.end_reason`
-and the dated `istat` identifier series. The `admin_*` values are read from those sources
+Populated from the identity source's succession records (338 rows), its end-of-life reasons
+and its dated `istat` identifier series. The `admin_*` values are read from those sources
 directly. `source_regeneralization` is the residual: a version whose geometry differs from its
 predecessor while no administrative event coincides with its `valid_from`. It is therefore
 derived by elimination and must never be assigned where an administrative cause exists — a
@@ -256,8 +271,8 @@ New fields:
 
 | Field | Source | Why |
 | --- | --- | --- |
-| `prov_tipo_uts` | MAPS `territories.subtype` | Enables the metropolitan-city layer, which does not exist today. Values present: Provincia (91), Città metropolitana (16), Libero consorzio di comuni (6), Provincia autonoma (2), Unità non amministrativa (4). |
-| `prov_uts_code` | MAPS `uts` identifier scheme | The `COD_UTS` code family — 312 Sassari, 318 Cagliari — distinct from `COD_PROV` 112 and 118. ISTAT's own products disagree on which to show; carrying both removes the ambiguity. |
+| `prov_tipo_uts` | identity source | Enables the metropolitan-city layer, which does not exist today. Values present: Provincia (91), Città metropolitana (16), Libero consorzio di comuni (6), Provincia autonoma (2), Unità non amministrativa (4). |
+| `prov_uts_code` | identity source, `uts` scheme | The `COD_UTS` code family — 312 Sassari, 318 Cagliari — distinct from `COD_PROV` 112 and 118. ISTAT's own products disagree on which to show; carrying both removes the ambiguity. |
 | `reg_iso_3166_2`, `prov_iso_3166_2` | issue #22 | Standard identifiers, resolves #22 and supersedes #14. |
 
 ### Geometry
@@ -266,27 +281,30 @@ New fields:
 
 ## 6. Sourcing
 
-**D9 — Geometry comes from ISTAT directly. MAPS is read-only, and supplies only identity.**
+**D9 — Geometry comes from ISTAT directly. The identity source is read-only, and supplies
+only identity.**
 
 | Layer | Source |
 | --- | --- |
 | Geometry | The ISTAT edition zip for each reference date, downloaded and read by this project |
-| Identity, codes, validity intervals, succession | MAPS `silver.territor*`, read-only |
+| Identity, codes, validity intervals, succession | The identity source, read-only |
 
 The split follows what each source is uniquely good at. ISTAT publishes the geometry and is
-its only authority. MAPS holds something that cannot be derived from shapefiles at all: the
+its only authority. The identity source holds something that cannot be derived from
+shapefiles at all: the
 reconstructed history of which entity is which across mergers, splits and recodings, with
 effective dates. Neither substitutes for the other.
 
-Three reasons this is better than sourcing geometry through MAPS:
+Three reasons this is better than sourcing geometry through the identity source:
 
-1. **No coordination with another project.** Nothing in `gst-maps-pipelines` has to change, and
-   this milestone does not wait on another roadmap.
+1. **No coordination with another project.** Nothing in the identity source has to change,
+   and this milestone does not wait on another roadmap.
 2. **D2 gets stronger.** Geometry never passes through an intermediate store, so
    `source_edition` names the file actually read and the round-trip check in §8 becomes close
    to tautological. Fidelity stops being a property of a pipeline and becomes a property of a
    download.
-3. **No inherited quirks.** The MAPS geometry table carries artefacts of its own ingestion —
+3. **No inherited quirks.** The identity source's geometry table carries artefacts of its
+   own ingestion —
    the 2021 edition loaded from the census product rather than the annual one; and Misiliscemi
    given a geometry dated 2021-01-01, before it legally existed. Reading ISTAT directly avoids
    both without asking anyone to fix them.
@@ -298,7 +316,7 @@ Three reasons this is better than sourcing geometry through MAPS:
 
 ISTAT coverage is complete and verified: all 26 editions from 2001 to 2026 were downloaded
 in August 2026, with checksums recorded in `build/editions/MANIFEST.json`. The
-"2002–2010 unavailable" gap recorded in the MAPS ingestion code does not exist. For 2001 and
+"2002–2010 unavailable" gap recorded in the identity source does not exist. For 2001 and
 2011 only the census edition exists, so it is the source for those two years by necessity.
 
 URL resolution lives in `scripts/istat_editions.py`, which knows the three shapes ISTAT
@@ -326,7 +344,7 @@ Fonte Nuova (2001-10-15), Baranzate (2001-12-12), Mappano (2017-04-18) and Misil
 continues to exist with a reduced area. Geometry is taken from the next edition in which the
 municipality appears, recorded as `source_edition = "<later edition> (anticipated)"`.
 
-These four also expose a gap in the MAPS succession graph: it holds no `split_into`
+These four also expose a gap in the succession graph: it holds no `split_into`
 relationship for any of them, so they cannot be distinguished from unrelated new entities
 programmatically. Hence the explicit list.
 
@@ -335,8 +353,9 @@ reproduce exactly the failure mode this design exists to avoid.
 
 ### Metadata that cannot be reconstructed
 
-MAPS holds no `op_id`, `opdm_id`, `minint_elettorale` or `minint_finloc`. Its identifier
-schemes are `istat`, `catasto`, `fiscale`, `uts`, `nuts` and `sigla_automobilistica`.
+The identity source holds no `op_id`, `opdm_id`, `minint_elettorale` or `minint_finloc`.
+Its identifier schemes are `istat`, `catasto`, `fiscale`, `uts`, `nuts` and
+`sigla_automobilistica`.
 
 Mitigation: for any historical municipality that still exists today, backfill these four
 fields by joining on `com_catasto_code`, which the current `comuni.geojson` carries and which
@@ -365,13 +384,13 @@ The archive is only credible if its fidelity claim is mechanically checked.
    hold is that no vertex is added, removed or moved beyond reprojection tolerance. This is
    the test that gives `source_edition` its meaning.
 2. **Municipality counts** per date reconciled against ISTAT's `Elenco-comuni-italiani`.
-3. **Interval integrity.** No overlapping validity periods for the same `terr_id`; no gaps
+3. **Interval integrity.** No overlapping validity periods for the same `terr_key`; no gaps
    between consecutive versions; every `valid_to` matching the next `valid_from`.
 4. **Derivation equivalence.** Provinces and regions dissolved from the historical
    municipality layer must reproduce the province and region counts ISTAT published for that
    date.
 5. **Continuity across the Sardinian reform.** Every one of the 377 municipalities must
-   resolve to the same `terr_id` before and after 1 January 2026, with `version_reason` set
+   resolve to the same `terr_key` before and after 1 January 2026, with `version_reason` set
    to `admin_cambio_codice` or `admin_riassegnazione`. This is the regression test for the
    whole design.
 
@@ -384,8 +403,9 @@ The archive is only credible if its fidelity claim is mechanically checked.
   because it does not move a boundary. A boundary change to an existing municipality carries
   the preceding edition's geometry until the next edition. A municipality created during the
   year is handled by the three-branch rule in §6.
-- Depth stops at 2001. ISTAT publishes census boundaries for 1991, and MAPS variation data
-  starts 1991-12-10, so the series can be extended backwards later without schema change.
+- Depth stops at 2001. ISTAT publishes census boundaries for 1991, and the identity source's
+  variation data starts 1991-12-10, so the series can be extended backwards later without
+  schema change.
 - The four openpolis and interior-ministry identifiers are absent for extinct municipalities
   (§6).
 

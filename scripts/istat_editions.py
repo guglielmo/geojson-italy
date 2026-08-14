@@ -8,18 +8,18 @@ shapes, and the difference is not cosmetic — one of them is a different produc
     Limiti<YYYY>_g.zip        census edition, published for census years only
 
 For 2021 both an annual and a census edition exist. They are not
-interchangeable: loading the census product in place of the annual one
-fabricates an area discontinuity of 3.5% to 12% on every municipality. That is
-the artefact the MAPS ingestion carries and this project exists to avoid, so
-the resolver always prefers the annual edition where one exists.
+interchangeable: not one of the 7,901 municipalities present in both has the
+same geometry in the two files. Loading the census product in place of the
+annual one is a documented way to fabricate a discontinuity across the whole
+country, so the resolver always prefers the annual edition where one exists.
 
 For 2001 and 2011 there is no annual edition at all — ISTAT published only the
 census cartography — so it is the source for those two years by necessity, and
 `source_edition` records which file was actually read.
 
 Verified against the live site in August 2026: every year from 2002 to 2026
-resolves in its annual form, so the "2002-2010 unavailable" gap recorded in the
-MAPS ingestion code does not exist.
+resolves in its annual form, so the "2002-2010 unavailable" gap this project
+had previously recorded does not exist.
 """
 
 BASE = "https://www.istat.it/storage/cartografia/confini_amministrativi/generalizzati"

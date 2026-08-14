@@ -36,7 +36,8 @@ decomposed into issues #24–#32.
 Two sources, each for what only it can provide. Geometry comes from the ISTAT edition
 archives, downloaded and read here, complete for every year from 2001 to 2026. The identity
 history — which entity is which across mergers, splits and recodings, with effective dates —
-comes from the territorial reconstruction built for the MAPS project, read-only, because it
+comes from a date-framed territorial reconstruction maintained outside this repository,
+read-only, because it
 cannot be derived from shapefiles at all.
 
 Three things shape the design.

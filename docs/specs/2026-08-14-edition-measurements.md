@@ -5,7 +5,7 @@ Issue: #24
 Companion to: [2026-08-14-historical-series-design.md](2026-08-14-historical-series-design.md)
 
 Every figure here comes from downloading the 26 editions and reading them, not from the
-MAPS database. Reproduce with:
+identity source. Reproduce with:
 
 ```sh
 .venv/bin/python -m scripts.fetch_editions      # ~300 MB of zips into build/editions/
@@ -17,7 +17,7 @@ Checksums for every file are recorded in `build/editions/MANIFEST.json`.
 ## What was confirmed
 
 **Coverage is complete for 2001–2026.** All 26 editions resolve and download. The
-"2002–2010 unavailable" gap recorded in the MAPS ingestion code does not exist.
+"2002–2010 unavailable" gap recorded in the identity source's ingestion code does not exist.
 
 **Two URL shapes, plus a census form.** `Limiti0101<YYYY>_g.zip` is the annual edition,
 nested under a year directory from 2022; `Limiti<YYYY>_g.zip` is the census edition,
@@ -47,8 +47,8 @@ and 2025*. Measured against the annual editions, they are:
 | 2024 → 2025 | 7,892 | 100.0% |
 | **2020 → 2021** | **7,903** | **4.7%** |
 
-**2021 is not one of them.** It appeared to be only because MAPS had ingested the census
-product in its place. Reading the annual edition directly, 2020 → 2021 changes 4.7% of
+**2021 is not one of them.** It appeared to be only because the identity source had ingested
+the census product in its place. Reading the annual edition directly, 2020 → 2021 changes 4.7% of
 geometries — an ordinary year with administrative events, nothing more.
 
 This is the clearest vindication of D9 available: sourcing geometry from ISTAT directly
@@ -56,7 +56,8 @@ does not merely avoid a known artefact, it changes a documented finding of the d
 
 ### The version count was inflated by that same artefact
 
-The design estimates ~74,600 versions from ~205,000 instances. Measured: **68,428 versions
+The design estimates ~74,600 versions from ~205,000 instances, derived from the identity
+source. Measured: **68,428 versions
 from 208,572 instances**, over one more edition than the design counted.
 
 The ~6,000 difference is roughly one edition's worth of municipalities, which is what a
@@ -105,7 +106,7 @@ The 2025 → 2026 figure matching 377 precisely is an independent check on the r
 
 - `source_edition` can name a real file with a recorded SHA-256, so the round-trip check in
   #30 compares against something a third party can fetch.
-- The identity layer (#25) still has to come from MAPS: nothing above establishes *which
-  entity is which* across a recoding, only that the codes changed.
+- The identity layer (#25) still has to come from the identity source: nothing above
+  establishes *which entity is which* across a recoding, only that the codes changed.
 - The 39 intra-year cases in #24's scope depend on that identity layer and are not
   addressed here.
