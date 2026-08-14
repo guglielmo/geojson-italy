@@ -33,12 +33,16 @@ serving boundaries at any past date, not only the current one. Design in
 [docs/specs/2026-08-14-historical-series-design.md](docs/specs/2026-08-14-historical-series-design.md),
 decomposed into issues #24–#32.
 
-Two sources, each for what only it can provide. Geometry comes from the ISTAT edition
-archives, downloaded and read here, complete for every year from 2001 to 2026. The identity
-history — which entity is which across mergers, splits and recodings, with effective dates —
-comes from a date-framed territorial reconstruction maintained outside this repository,
-read-only, because it
-cannot be derived from shapefiles at all.
+**Everything comes from ISTAT, and needs no credentials.** Geometry from the edition
+archives — all 26 downloaded and measured, 2001 to 2026. Identity from the SITUAS variation
+reports: which entity is which across mergers, splits and recodings, with effective dates
+and enacting acts, published anonymously with coverage back to 1861.
+
+That second half was settled in August 2026. The milestone was designed around a derived
+reconstruction maintained elsewhere; reading ISTAT directly removed the dependency and, with
+it, a defect the derived reading carried — a municipality extinguished in 2003 and
+re-established in 2004 appeared as permanently extinct, because only extinction records were
+being read.
 
 Three things shape the design.
 
@@ -47,11 +51,17 @@ segment in a given edition, the archive publishes it straightened. This reposito
 provenance; a normalised archive is the maintainer's interpretation carrying ISTAT's
 authority, and a third party cannot falsify it.
 
-**A surrogate stable identity.** The Sardinian reform changed all 377 Sardinian
+**A stable, public identity.** The Sardinian reform changed all 377 Sardinian
 `com_istat_code` values with zero overlap, because the municipal code embeds the province
 code. No dataset keyed on the ISTAT code can express continuity across that event. The
-archive keys on a surrogate identifier and treats the ISTAT code as what it is — an attribute
-with a validity period.
+archive keys on the **first cadastral code** and treats the ISTAT code as what it is — an
+attribute with a validity period.
+
+The key has to be public as well as stable: an internal row id from someone's database
+renumbers on re-import and cannot be checked by anyone else. The cadastral code is assigned
+by the Agenzia delle Entrate and republished by ISTAT, and measured across the whole series
+8,229 of 8,230 municipalities carry exactly one for their entire life, with no code ever
+reused. Rules and tests in `scripts/identity.py`.
 
 **Consumers download files and never run code.** Every one of the 58 change dates from 2001
 is pre-materialised and published as release assets, with an index mapping validity intervals
@@ -78,6 +88,24 @@ is written:
   ISTAT attribution has to survive any transfer.
 
 First step is an exploratory issue on that repository, not a pull request.
+
+## Administrative changes pending for the next release
+
+Read from ISTAT's variation records in August 2026. These all postdate the published
+1 January 2026 vintage, so the current data is correct *for its reference date* — but each
+will be reported as a defect until the next vintage adopts it.
+
+| Effective | Change |
+| --- | --- |
+| 2026-01-31 | **Lirio** incorporated into Montalto Pavese (L.R. Lombardia 1/2026) |
+| 2026-02-21 | **Castegnero** and **Nanto** merged into **Castegnero Nanto** (`024129`, cadastral `M439`) |
+| 2026-05-14 | **Vallecrosia** renamed **Vallecrosia al mare** |
+
+The first two bring the national count to 7,894 and are already noted in the `2026.1`
+CHANGELOG. The rename is new — it was found by reading the variation reports directly, and
+had not been noticed before.
+
+ISTAT publishes the 1 January 2027 edition around March 2027; all three will be in it.
 
 ## Known defects in the current release
 

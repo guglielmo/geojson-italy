@@ -14,11 +14,11 @@ The repository was originally intended to serve boundaries at different points i
 with git tags as the mechanism. That mechanism does not scale — see §3 — and no tag exists
 for anything before 2019, so the archive has to be built rather than accumulated.
 
-Two sources, each for what only it can provide: ISTAT publishes the geometry for every
-reference date, and a date-framed territorial reconstruction — maintained outside this
-repository, and referred to below as the **identity source** — holds the history of which
-entity is which across mergers, splits and recodings, which cannot be derived from
-shapefiles. It is read only; see D9.
+Everything comes from ISTAT, by two routes. The **edition archives** publish the geometry
+for each reference date. The **SITUAS variation reports** publish the history of which
+entity is which across mergers, splits and recodings — which cannot be derived from
+shapefiles at all, and which ISTAT records with effective dates and enacting acts. Both are
+public and need no credentials; see D9.
 
 ## 2. Decisions
 
@@ -43,15 +43,30 @@ per-region and per-province files are produced only for the current vintage. Pro
 regions and metropolitan cities must remain derivable from the municipality layer for any
 date — which they are, by dissolve, exactly as today.
 
-**D4 — The temporal dataset is tracked in git** (as opposed to living only in release assets
-or only in the identity source). Anyone must be able to reconstruct any snapshot without
-credentials to a private database. An archive that only its maintainer can rebuild is an
-archive that has to be taken on trust, which defeats the point of publishing boundaries as
-a common good.
+**D4 — The temporal dataset is tracked in git**, rather than living only in release assets
+or being regenerated on demand. Anyone must be able to reconstruct any snapshot without
+credentials. An archive that only its maintainer can rebuild is an archive that has to be
+taken on trust, which defeats the point of publishing boundaries as a common good.
 
-**D5 — Depth 2001–2025 initially**, extended to 2026 with the `2026.1` release. This is the
-full extent of ISTAT's published coverage of administrative boundaries. Cost measurements
-(§3) show depth is not a constraint, so there is no reason to truncate the series.
+Since D9 was revised, this holds twice over: the tracked dataset is rebuildable from public
+sources end to end, so the guarantee is a property of the pipeline and not only of the
+committed files.
+
+**D5 — Depth 2001–2026.** Cost measurements (§3) show depth is not a constraint, so the
+series is not truncated for size.
+
+> **Revised 14 August 2026.** This decision read "2001–2025, the full extent of ISTAT's
+> published coverage". That was the extent of the *derived* source's coverage, not ISTAT's.
+> Measured since:
+>
+> - **Geometry** resolves for every year 2002–2026, plus census editions for 1991, 2001 and
+>   2011 — so 1991 is reachable, and the annual series has no gaps (§3).
+> - **Identity** goes back further still: the variation reports start in 1861, 1862, 1865
+>   and 1868 depending on the report.
+>
+> The binding constraint is therefore geometry at 1991, not identity at 2001. Depth stays at
+> 2001 for this milestone because that is what the measurements in §3 cost out; extending to
+> 1991 is a decision about scope, no longer about availability.
 
 **D6 — The repository root stays exactly as it is.** `geojson/`, `topojson/` and
 `comuni.geojson` keep their paths, names and contents for the current vintage. Third parties
@@ -114,7 +129,10 @@ geojson-italy/
 │   ├── INDEX.csv               validity interval -> release tag
 │   └── SCHEMA.md
 └── scripts/
-    ├── build_temporal.py       identity source -> temporal dataset
+    ├── fetch_editions.py       ISTAT edition archives -> build/editions/
+    ├── fetch_variations.py     SITUAS variation reports -> build/situas/
+    ├── identity.py             identity rules (key, validity, no silent repair)
+    ├── build_temporal.py       editions + variations -> temporal dataset
     └── materialize.py          temporal dataset + date -> release assets
 ```
 
@@ -253,8 +271,9 @@ intervening years change only administratively affected municipalities. A consum
 this field sees roughly 7,900 changed boundaries and concludes something historic happened.
 With it, they can filter to the handful that actually changed.
 
-Populated from the identity source's succession records (338 rows), its end-of-life reasons
-and its dated `istat` identifier series. The `admin_*` values are read from those sources
+Populated from the SITUAS variation records: `ES`/`AQES` give mergers, `CS`/`CECS` give
+constitutions and detachments, `CD` gives renames, `RN` code renumbering and `AP` provincial
+reassignment — each with its effective date and enacting act. The `admin_*` values are read from those sources
 directly. `source_regeneralization` is the residual: a version whose geometry differs from its
 predecessor while no administrative event coincides with its `valid_from`. It is therefore
 derived by elimination and must never be assigned where an administrative cause exists — a
@@ -271,8 +290,8 @@ New fields:
 
 | Field | Source | Why |
 | --- | --- | --- |
-| `prov_tipo_uts` | identity source | Enables the metropolitan-city layer, which does not exist today. Values present: Provincia (91), Città metropolitana (16), Libero consorzio di comuni (6), Provincia autonoma (2), Unità non amministrativa (4). |
-| `prov_uts_code` | identity source, `uts` scheme | The `COD_UTS` code family — 312 Sassari, 318 Cagliari — distinct from `COD_PROV` 112 and 118. ISTAT's own products disagree on which to show; carrying both removes the ambiguity. |
+| `prov_tipo_uts` | ISTAT edition, `TIPO_UTS` | Enables the metropolitan-city layer, which does not exist today. In the 2026 edition: Provincia (83), Città metropolitana (15), Libero consorzio di comuni (6), Unità non amministrativa (4), Provincia autonoma (2). |
+| `prov_uts_code` | ISTAT edition, `COD_UTS` | The `COD_UTS` family — 312 Sassari, 318 Cagliari — distinct from `COD_PROV` 112 and 118. ISTAT's own products disagree on which to show, and SITUAS reports the 2026 reform against `COD_UTS`; carrying both removes the ambiguity. |
 | `reg_iso_3166_2`, `prov_iso_3166_2` | issue #22 | Standard identifiers, resolves #22 and supersedes #14. |
 
 ### Geometry
@@ -284,69 +303,87 @@ New fields:
 **D9 — Geometry comes from ISTAT directly. The identity source is read-only, and supplies
 only identity.**
 
-> **Revised 14 August 2026 — identity comes from ISTAT too.**
->
-> D9 was written assuming the identity history could only come from a reconstruction
-> maintained elsewhere. That assumption is wrong: ISTAT publishes the underlying variation
-> records itself, through the SITUAS service, with **no authentication**.
->
-> Verified: the catalogue at `situas.istat.it/ShibO2Module/api/Report/ReportByUrl` answers
-> anonymously and lists 77 datasets with their download links. The ones this milestone needs
-> are `129` (municipal variations, the master list from 1991), `98` (suppressed
-> municipalities, which carries `COD_CATASTO` — our key), `104` (name changes) and `105`
-> (statistical code changes), plus their province and region equivalents. Coverage starts
-> **17 March 1861**, against 1991 for the derived reconstruction.
->
-> This matters beyond removing a dependency. The reconstruction does not hold data ISTAT
-> lacks; it holds a *partial reading* of ISTAT's variation records. Its transform keeps only
-> records classified `ES` (extinction) and ignores `CS` (constitution), so a municipality
-> that was extinguished and later re-established is recorded as extinct and never comes
-> back. **Baranzate** is exactly that case: constituted 2001-12-12, genuinely extinguished
-> 2003-03-06 when the Constitutional Court struck down the regional law that created it
-> (sentenza 47/2003), then re-established 2004-06-08 by a new regional law. The extinction
-> is real; the omission is the resurrection.
->
-> **Verified 14 August 2026** — the layout and taxonomy have since been read. Report `129`
-> carries 2,356 records with `COD_CATASTO` and `COD_CATASTO_REL` (our key on both sides),
-> the effective date, the enacting act and its text. The taxonomy is closed and every record
-> has a related code:
->
-> | Code | Meaning | Records |
-> | --- | --- | --- |
-> | `AP` | Change of province | 964 |
-> | `ES` | Extinction | 348 |
-> | `CS` | Constitution | 342 |
-> | `RN` | Statistical code renumbering | 222 |
-> | `CE` / `AQ` | Territory ceded / acquired | 197 each |
-> | `CD` | Name change | 50 |
-> | `AQES` | Acquisition by extinction | 21 |
-> | `CECS` | Cession for constitution of a new unit | 15 |
->
-> One consequence for §6: **detachments no longer need enumerating**. All 342 `CS` records
-> carry their predecessor, so Fonte Nuova (two `CS`, from Guidonia Montecelio and Mentana),
-> Mappano (four) and Misiliscemi (one, from Trapani) are derivable rather than hardcoded.
+> **Revised 14 August 2026.** D9 originally assumed the identity history could only come
+> from a reconstruction maintained elsewhere. That assumption was wrong: ISTAT publishes the
+> underlying variation records itself, anonymously, with coverage from 1861 against 1991 for
+> the reconstruction. The reports and their layout are documented below; the reconstruction
+> is no longer a dependency of this milestone.
 
-| Layer | Source |
-| --- | --- |
-| Geometry | The ISTAT edition zip for each reference date, downloaded and read by this project |
-| Identity, codes, validity intervals, succession | The identity source, read-only |
+Both layers come from ISTAT, by different routes:
 
-The split follows what each source is uniquely good at. ISTAT publishes the geometry and is
-its only authority. The identity source holds something that cannot be derived from
-shapefiles at all: the
-reconstructed history of which entity is which across mergers, splits and recodings, with
-effective dates. Neither substitutes for the other.
+| Layer | Source | Verified |
+| --- | --- | --- |
+| Geometry | The ISTAT edition zip for each reference date | 26 editions, 2001–2026, §3 |
+| Identity, codes, validity, succession | The SITUAS variation reports | 4 reports, from 1861 |
 
-Three reasons this is better than sourcing geometry through the identity source:
+### The SITUAS reports
 
-1. **No coordination with another project.** Nothing in the identity source has to change,
-   and this milestone does not wait on another roadmap.
+Anonymous HTTP, `Accept: application/json`. The catalogue at
+`situas.istat.it/ShibO2Module/api/Report/ReportByUrl` (POST `{"url":
+"get_elenco_microservizi"}`) lists all 77 datasets with their exact download links —
+read those rather than constructing URLs, because the parameter set differs per report.
+
+| pfun | Report | Params | Records | From | Key |
+| --- | --- | --- | --- | --- | --- |
+| 129 | Municipal variations | `pdata` | 2,356 | 1991 | `COD_CATASTO` both sides |
+| 98 | Suppressed municipalities | `pdatada`/`pdataa` | 3,618 | 1865 | `COD_CATASTO` both sides |
+| 104 | Name changes | `pdatada`/`pdataa` | 2,765 | 1862 | **no cadastral code** |
+| 105 | Statistical code changes | `pdatada`/`pdataa` | 4,761 | 1868 | **no cadastral code** |
+
+Every record carries the effective date, the enacting act and the related unit.
+
+The variation taxonomy in report 129 is closed, and **every record has a related code**:
+
+| Code | Meaning | Records |
+| --- | --- | --- |
+| `AP` | Change of province | 964 |
+| `ES` | Extinction | 348 |
+| `CS` | Constitution | 342 |
+| `RN` | Statistical code renumbering | 222 |
+| `CE` / `AQ` | Territory ceded / acquired | 197 each |
+| `CD` | Name change | 50 |
+| `AQES` | Acquisition by extinction | 21 |
+| `CECS` | Cession for constitution of a new unit | 15 |
+
+Report 105 uses a narrower one: `AP` (4,220), `RN` (474), `RNAPUTS` (66), `CDAP` (1).
+
+Reading `ES` and `CS` **together** is not optional. A municipality can be extinguished and
+later re-established, and a reader that keeps only `ES` records loses the second event:
+Baranzate was constituted 2001-12-12, genuinely extinguished 2003-03-06 when the
+Constitutional Court struck down the regional law that created it (sentenza 47/2003), and
+re-established 2004-06-08 by a new one. It is the only such sequence in the 2,356 records
+since 1991, and it is present in every ISTAT boundary edition from 2004 onward — so an
+archive that misses it contradicts its own geometry source.
+
+**Reports 104 and 105 have no cadastral code**, so binding them to an entity means walking
+the ISTAT code chain, which 105 itself provides as `PRO_COM_T → PRO_COM_T_REL`. Verified on
+the hardest known case, Aggius: `090001 → 104001` (2006), `104001 → 090001` (2016),
+`090001 → 113001` (2026) — the same chain the derived reconstruction held, from the public
+source.
+
+**Codes for metropolitan cities differ between the two layers.** SITUAS reports the 2026
+Sardinian reform against `COD_UTS` **312** (Sassari) and **318** (Cagliari); the boundary
+shapefiles use `COD_PROV` **112** and **118**. The municipality counts agree exactly — 66
+and 70 — so the two are the same units under two code families. This repository publishes
+the `COD_PROV` family; see the note in `STATUS.md`.
+
+### Why not source identity through a derived reconstruction
+
+A reconstruction of this history is maintained elsewhere, and the milestone was originally
+designed around it. Reading ISTAT directly is better on three counts, and the third is the
+decisive one:
+
+1. **No coordination with another project**, and no waiting on another roadmap.
 2. **D2 gets stronger.** Geometry never passes through an intermediate store, so
    `source_edition` names the file actually read and the round-trip check in §8 becomes close
    to tautological. Fidelity stops being a property of a pipeline and becomes a property of a
    download.
-3. **No inherited quirks.** The identity source's geometry table carries artefacts of its
-   own ingestion —
+3. **Interpretation stays where it can be checked.** A reconstruction does not hold data
+   ISTAT lacks — it holds a *reading* of these same variation records, and a reading can be
+   wrong in ways its consumers cannot see. Reading the records here means an ambiguous
+   classification can fail the build instead of being silently resolved, which is what this
+   design asks for everywhere else.
+4. **No inherited quirks.** A derived store carries artefacts of its own ingestion —
    the 2021 edition loaded from the census product rather than the annual one; and Misiliscemi
    given a geometry dated 2021-01-01, before it legally existed. Reading ISTAT directly avoids
    both without asking anyone to fix them.

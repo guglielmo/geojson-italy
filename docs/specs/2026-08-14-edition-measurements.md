@@ -106,7 +106,8 @@ The 2025 → 2026 figure matching 377 precisely is an independent check on the r
 
 - `source_edition` can name a real file with a recorded SHA-256, so the round-trip check in
   #30 compares against something a third party can fetch.
-- The identity layer (#25) still has to come from the identity source: nothing above
-  establishes *which entity is which* across a recoding, only that the codes changed.
+- The identity layer (#25) is a separate problem: nothing above establishes *which entity is
+  which* across a recoding, only that the codes changed. It is answered by ISTAT's SITUAS
+  variation reports — see §6 of the design.
 - The 39 intra-year cases in #24's scope depend on that identity layer and are not
   addressed here.
