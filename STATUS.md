@@ -137,8 +137,11 @@ serving boundaries at any past date, not only the current one. Design in
 [docs/specs/2026-08-14-historical-series-design.md](docs/specs/2026-08-14-historical-series-design.md),
 decomposed into issues #24–#32.
 
-The source is the territorial reconstruction built for the MAPS project: a date-framed model
-of territories, identifiers, containment, succession and geometry covering 2001–2025.
+Two sources, each for what only it can provide. Geometry comes from the ISTAT edition
+archives, downloaded and read here, complete for every year from 2001 to 2026. The identity
+history — which entity is which across mergers, splits and recodings, with effective dates —
+comes from the territorial reconstruction built for the MAPS project, read-only, because it
+cannot be derived from shapefiles at all.
 
 Three things shape the design.
 
