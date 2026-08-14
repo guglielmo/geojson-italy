@@ -14,8 +14,10 @@ of scope), three confirmed defects are tracked under the `2026.1` milestone, and
 remain open as planned work or open questions.
 
 The repository moved from `openpolis/geojson-italy` to
-[`guglielmo/geojson-italy`](https://github.com/guglielmo/geojson-italy). Redirects keep
-old links working, but pinned raw/CDN URLs should be updated.
+[`guglielmo/geojson-italy`](https://github.com/guglielmo/geojson-italy), and the default
+branch was renamed `master` → `main` in August 2026. GitHub redirects both, on
+`raw.githubusercontent.com` as well as the web UI, so pinned URLs keep working — but they
+should be updated to the current owner and branch.
 
 ## Priorities, in order
 
@@ -27,7 +29,7 @@ resolves four open issues at once. Steps:
 1. Determine the current ISTAT vintage at the
    [reference permalink](https://www.istat.it/it/archivio/222527).
 2. Rebuild `comuni.geojson` from the ISTAT shapefiles (procedure in the
-   [wiki](https://github.com/openpolis/geojson-italy/wiki/How-to-generate-the-limits-files)),
+   [wiki](https://github.com/guglielmo/geojson-italy/wiki/How-to-generate-the-limits-files)),
    fixing the defects listed below in the process.
 3. Regenerate all outputs (`./generate_geojson.sh`, `./generate_topojson.sh`).
 4. Verify visually that no municipality holes remain (see #18) and that municipality

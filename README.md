@@ -12,14 +12,22 @@ As administrative limits change continuously, the files are upgraded periodicall
 
 Historical versions, year by year, are published as tags, currently only 2019 and 2021 are present.
 
-The master branch currently contains limits as of June 2023.
+The main branch currently contains limits as of June 2023.
 
 # Canonical home
 
 This repository lives at
 [`guglielmo/geojson-italy`](https://github.com/guglielmo/geojson-italy).
 It was previously hosted at `openpolis/geojson-italy`; old links redirect here.
-Please update any pinned raw/CDN URLs to point to this repository.
+
+The default branch was renamed from `master` to `main` in August 2026. GitHub redirects
+the old branch name, including on `raw.githubusercontent.com`, so existing pinned URLs
+keep working — but that redirect is a convenience, not a guarantee. Please update any
+pinned raw/CDN URLs to the current owner and branch:
+
+```
+https://raw.githubusercontent.com/guglielmo/geojson-italy/main/<path>
+```
 
 
 # Attribution
@@ -35,11 +43,11 @@ As of June 2023 (tag 2023.1), the geojson files are produced using the `gj2008` 
 You can find the original discussion in [this mapshaper's issue](https://github.com/mbloch/mapshaper/issues/432#issuecomment-675775465).
 
 The following files are available:
-- [geojson/limits_IT_municipalities.geojson](https://github.com/openpolis/geojson-italy/blob/master/geojson/limits_IT_municipalities.geojson) - all Italian municipalities, ~40MB
-- [geojson/limits_IT_provinces.geojson](https://github.com/openpolis/geojson-italy/blob/master/geojson/limits_IT_provinces.geojson) - all Italian provinces
-- [geojson/limits_IT_regions.geojson](https://github.com/openpolis/geojson-italy/blob/master/geojson/limits_IT_regions.geojson) - all Italian regions
-- geojson/limits_R_{code}_municipalities.geojson - all municipalities in a region (R is the ISTAT numerical code of the region, ex: [geojson/limits_R_12_municipalities.geojson](https://github.com/openpolis/geojson-italy/blob/master/geojson/limits_R_12_municipalities.geojson) - Lazio region)
-- geojson/limits_P_{code}_municipalities.geojson - all munitipalities in a province (P is the ISTAT numerical code of the province, ex: [geojson/limits_P_58_municipalities.geojson](https://github.com/openpolis/geojson-italy/blob/master/geojson/limits_P_58_municipalities.geojson) - Rome province)
+- [geojson/limits_IT_municipalities.geojson](https://github.com/guglielmo/geojson-italy/blob/main/geojson/limits_IT_municipalities.geojson) - all Italian municipalities, ~40MB
+- [geojson/limits_IT_provinces.geojson](https://github.com/guglielmo/geojson-italy/blob/main/geojson/limits_IT_provinces.geojson) - all Italian provinces
+- [geojson/limits_IT_regions.geojson](https://github.com/guglielmo/geojson-italy/blob/main/geojson/limits_IT_regions.geojson) - all Italian regions
+- geojson/limits_R_{code}_municipalities.geojson - all municipalities in a region (R is the ISTAT numerical code of the region, ex: [geojson/limits_R_12_municipalities.geojson](https://github.com/guglielmo/geojson-italy/blob/main/geojson/limits_R_12_municipalities.geojson) - Lazio region)
+- geojson/limits_P_{code}_municipalities.geojson - all munitipalities in a province (P is the ISTAT numerical code of the province, ex: [geojson/limits_P_58_municipalities.geojson](https://github.com/guglielmo/geojson-italy/blob/main/geojson/limits_P_58_municipalities.geojson) - Rome province)
 
 Please consider that maps preview for geojson data are only available for files of limited size in github.com; use [mapshaper](https://mapshaper.org) to see and explore larger files.
 
@@ -48,12 +56,12 @@ Please consider that maps preview for geojson data are only available for files 
 These files are **simplified**, **smaller**, but **less precise**, and contains **a lot less vectors** than the corresponding `geojson` files, can contain **many layers**, and can be used in compatible map visualisers ([leaflet](https://webkid.io/blog/maps-with-leaflet-and-topojson/), [d3](https://bl.ocks.org/almccon/410b4eb5cad61402c354afba67a878b8), mapshaper).
 
 The following `topojson` files are available:
-- [topojson/limits_IT_all.topo.json](https://github.com/openpolis/geojson-italy/blob/master/topojson/limits_IT_all.topo.json) - all municipalities, provinces and regions (3 layers), ~4MB
-- [topojson/limits_IT_municipalities.topo.json](https://github.com/openpolis/geojson-italy/blob/master/topojson/limits_IT_municipalities.topo.json) - all Italian municipalities (1 layer), ~4MB
-- [topojson/limits_IT_provinces.topo.json](https://github.com/openpolis/geojson-italy/blob/master/topojson/limits_IT_provinces.topo.json) - all Italian provinces (1 layer)
-- [topojson/limits_IT_regions.topo.json](https://github.com/openpolis/geojson-italy/blob/master/topojson/limits_IT_regions.topo.json) - all Italian regions (1 layer)
-- topojson/limits_R_{code}_municipalities.topo.json - all municipalities in a region (R is the ISTAT numerical code of the region, for ex: [topojson/limits_R_12_municipalities.topo.json](https://github.com/openpolis/geojson-italy/blob/master/topojson/limits_R_12_municipalities.topo.json) - Lazio region)
-- topojson/limits_P_{code}_municipalities.topo.json - all munitipalities in a province (P is the ISTAT numerical code of the province, for ex: [topojson/limits_P_58_municipalities.topo.json](https://github.com/openpolis/geojson-italy/blob/master/topojson/limits_P_58_municipalities.topo.json) - Rome province)
+- [topojson/limits_IT_all.topo.json](https://github.com/guglielmo/geojson-italy/blob/main/topojson/limits_IT_all.topo.json) - all municipalities, provinces and regions (3 layers), ~4MB
+- [topojson/limits_IT_municipalities.topo.json](https://github.com/guglielmo/geojson-italy/blob/main/topojson/limits_IT_municipalities.topo.json) - all Italian municipalities (1 layer), ~4MB
+- [topojson/limits_IT_provinces.topo.json](https://github.com/guglielmo/geojson-italy/blob/main/topojson/limits_IT_provinces.topo.json) - all Italian provinces (1 layer)
+- [topojson/limits_IT_regions.topo.json](https://github.com/guglielmo/geojson-italy/blob/main/topojson/limits_IT_regions.topo.json) - all Italian regions (1 layer)
+- topojson/limits_R_{code}_municipalities.topo.json - all municipalities in a region (R is the ISTAT numerical code of the region, for ex: [topojson/limits_R_12_municipalities.topo.json](https://github.com/guglielmo/geojson-italy/blob/main/topojson/limits_R_12_municipalities.topo.json) - Lazio region)
+- topojson/limits_P_{code}_municipalities.topo.json - all munitipalities in a province (P is the ISTAT numerical code of the province, for ex: [topojson/limits_P_58_municipalities.topo.json](https://github.com/guglielmo/geojson-italy/blob/main/topojson/limits_P_58_municipalities.topo.json) - Rome province)
 
 Please consider that maps preview for topojson data are not available on github.com; use [mapshaper](https://mapshaper.org) to see the files.
 
@@ -87,4 +95,4 @@ To generate all files, starting from the `comuni.geojson` file:
 ```
 The [mapshaper client](https://github.com/mbloch/mapshaper), based on [node js](https://nodejs.org/en/), is **required** by the scripts to work. These are currently based on mapshaper version `0.6.65`
 
-How the `comuni.geojson` file is generated, and other scripts' internals are described in [this wiki page](https://github.com/openpolis/geojson-italy/wiki/How-to-generate-the-limits-files).
+How the `comuni.geojson` file is generated, and other scripts' internals are described in [this wiki page](https://github.com/guglielmo/geojson-italy/wiki/How-to-generate-the-limits-files).

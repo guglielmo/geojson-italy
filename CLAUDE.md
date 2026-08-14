@@ -14,8 +14,11 @@ Consequence: the **file paths and the property names are a public API**. Third p
 pin `raw.githubusercontent.com` / CDN URLs against them. Never rename, restructure or
 delete published files as a cleanup — including the empty ones (see below).
 
-Canonical home is `guglielmo/geojson-italy` (moved from `openpolis/geojson-italy`; the
-in-body README links still point at the old org paths, and redirects keep them working).
+Canonical home is `guglielmo/geojson-italy`, moved from `openpolis/geojson-italy`, with the
+default branch renamed `master` → `main` in August 2026. GitHub redirects both the old owner
+and the old branch name, `raw.githubusercontent.com` included — verified, so pre-existing
+pinned URLs still resolve. Don't rely on it for new links: use owner `guglielmo` and branch
+`main`.
 
 ## Commands
 
@@ -42,7 +45,7 @@ run the matching mapshaper command by hand rather than the whole loop.
 `comuni.geojson` (38 MB, tracked, EPSG:4326/WGS84) is the **single source of truth** and
 is *not* produced by anything in this repo — it is built externally from ISTAT shapefiles
 enriched with openpolis/OPDM identifiers, per the
-[wiki](https://github.com/openpolis/geojson-italy/wiki/How-to-generate-the-limits-files).
+[wiki](https://github.com/guglielmo/geojson-italy/wiki/How-to-generate-the-limits-files).
 An update cycle therefore starts by replacing that file, not by editing the scripts.
 
 Two deliberately asymmetric derivation paths:
