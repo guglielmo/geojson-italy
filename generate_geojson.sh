@@ -21,10 +21,10 @@ mapshaper \
     -i geojson/limits_IT_municipalities.geojson encoding=utf8 -clean \
     -rename-layers municipalities \
     -dissolve prov_istat_code + \
-      copy-fields=prov_name,prov_istat_code_num,prov_acr,reg_name,reg_istat_code,reg_istat_code_num name=provinces \
+      copy-fields=prov_name,prov_istat_code_num,prov_acr,prov_iso_3166_2,reg_name,reg_istat_code,reg_istat_code_num,reg_iso_3166_2 name=provinces \
     -target 1 \
     -dissolve reg_istat_code + \
-      copy-fields=reg_name,reg_istat_code_num name=regions \
+      copy-fields=reg_name,reg_istat_code_num,reg_iso_3166_2 name=regions \
     -target 1  \
     -o geojson/limits_IT_provinces.geojson bbox gj2008 format=geojson target=provinces \
     -o geojson/limits_IT_regions.geojson bbox gj2008 format=geojson target=regions

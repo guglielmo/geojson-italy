@@ -24,10 +24,10 @@ mapshaper \
     -i topojson/limits_IT_municipalities.topo.json encoding=utf8 -clean \
     -rename-layers municipalities \
     -dissolve prov_istat_code + \
-      copy-fields=prov_name,prov_istat_code_num,prov_acr,reg_name,reg_istat_code,reg_istat_code_num name=provinces \
+      copy-fields=prov_name,prov_istat_code_num,prov_acr,prov_iso_3166_2,reg_name,reg_istat_code,reg_istat_code_num,reg_iso_3166_2 name=provinces \
     -target 1 \
     -dissolve reg_istat_code + \
-      copy-fields=reg_name,reg_istat_code_num name=regions \
+      copy-fields=reg_name,reg_istat_code_num,reg_iso_3166_2 name=regions \
     -target 1  \
     -o topojson/limits_IT_all.topo.json bbox format=topojson target=regions,provinces,municipalities \
     -o topojson/limits_IT_regions.topo.json bbox format=topojson target=regions \
