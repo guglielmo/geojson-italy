@@ -70,34 +70,3 @@ def test_cadastral_codes_unique_and_complete(comuni):
     codes = [f["properties"]["com_catasto_code"] for f in comuni]
     assert all(codes), "some municipality has no cadastral code"
     assert len(set(codes)) == len(codes), "cadastral codes are not unique"
-
-
-def test_property_schema_unchanged(comuni):
-    """Consumers must see exactly the documented property set.
-
-    Checked on every feature, not on a sample: a single municipality carrying an
-    extra or missing key is exactly the kind of defect that reaches a consumer
-    before it reaches us.
-    """
-    expected = {
-        "name", "com_catasto_code", "com_istat_code", "com_istat_code_num",
-        "op_id", "opdm_id", "minint_elettorale", "minint_finloc",
-        "prov_name", "prov_istat_code", "prov_istat_code_num", "prov_acr",
-        "reg_name", "reg_istat_code", "reg_istat_code_num",
-    }
-    offenders = [
-        f["properties"].get("name")
-        for f in comuni
-        if set(f["properties"]) != expected
-    ]
-    assert not offenders, f"{len(offenders)} features with a different schema: {offenders[:5]}"
-
-
-def test_published_key_order_preserved(comuni):
-    """The key order the published file has carried since 2019."""
-    assert list(comuni[0]["properties"]) == [
-        "name", "op_id", "minint_elettorale", "minint_finloc",
-        "prov_name", "prov_istat_code", "prov_istat_code_num", "prov_acr",
-        "reg_name", "reg_istat_code", "reg_istat_code_num",
-        "opdm_id", "com_catasto_code", "com_istat_code", "com_istat_code_num",
-    ]

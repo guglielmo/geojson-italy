@@ -117,9 +117,37 @@ def test_build_properties_preserves_the_published_key_order():
     assert list(props) == [
         "name", "op_id", "minint_elettorale", "minint_finloc",
         "prov_name", "prov_istat_code", "prov_istat_code_num", "prov_acr",
-        "reg_name", "reg_istat_code", "reg_istat_code_num",
+        "prov_iso_3166_2",
+        "reg_name", "reg_istat_code", "reg_istat_code_num", "reg_iso_3166_2",
         "opdm_id", "com_catasto_code", "com_istat_code", "com_istat_code_num",
     ]
+
+
+def test_build_properties_carries_iso_codes():
+    """Issue #22. The ISO codes ride alongside the ISTAT ones."""
+    comune = {"COMUNE": "Agliè", "PRO_COM_T": "001001", "COD_PROV": 1, "COD_REG": 1}
+    props = build_properties(comune, {1: {"DEN_UTS": "Torino", "SIGLA": "TO"}},
+                             {1: "Piemonte"}, catasto="A074")
+
+    assert props["prov_iso_3166_2"] == "IT-TO"
+    assert props["reg_iso_3166_2"] == "IT-21"
+
+
+def test_build_properties_leaves_iso_null_where_the_standard_has_no_code():
+    """The four Sardinian units created in 2026 have no ISO code, and their
+    plates match codes ISO deleted in 2019. None is the honest value; the
+    region still gets its code, since IT-88 is unaffected."""
+    comune = {"COMUNE": "Aggius", "PRO_COM_T": "113001", "COD_PROV": 113,
+              "COD_REG": 20}
+    props = build_properties(
+        comune,
+        {113: {"DEN_UTS": "Gallura Nord-Est Sardegna", "SIGLA": "OT"}},
+        {20: "Sardegna"},
+        catasto="A069",
+    )
+
+    assert props["prov_iso_3166_2"] is None
+    assert props["reg_iso_3166_2"] == "IT-88"
 
 
 def test_read_legacy_by_catasto_keys_on_cadastral_code(tmp_path):

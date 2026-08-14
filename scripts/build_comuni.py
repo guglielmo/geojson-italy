@@ -10,6 +10,8 @@ from pathlib import Path
 
 import openpyxl
 
+from scripts.iso_3166_2 import province_iso_code, region_iso_code
+
 # Headings in Elenco-comuni-italiani.xlsx. The columns are located by heading
 # rather than by position: ISTAT reorders this spreadsheet between editions, and
 # a hardcoded index would keep reading, silently joining the wrong column.
@@ -69,9 +71,11 @@ def build_properties(comune, uts_by_code, region_names, catasto):
         "prov_istat_code": f"{prov_code:03d}",
         "prov_istat_code_num": prov_code,
         "prov_acr": uts["SIGLA"],
+        "prov_iso_3166_2": province_iso_code(uts["SIGLA"]),
         "reg_name": region_names[reg_code],
         "reg_istat_code": f"{reg_code:02d}",
         "reg_istat_code_num": reg_code,
+        "reg_iso_3166_2": region_iso_code(reg_code),
         "opdm_id": None,
         "com_catasto_code": catasto,
         "com_istat_code": istat,
