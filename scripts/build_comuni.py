@@ -45,3 +45,35 @@ def read_catasto_codes(path):
         if istat and catasto:
             out[str(istat).strip()] = str(catasto).strip()
     return out
+
+
+def build_properties(comune, uts_by_code, region_names, catasto):
+    """Assemble the published property set for one municipality.
+
+    Codes are carried both zero-padded as text and as integers, matching the
+    schema this repository has always published. The key order reproduces the
+    published file's, legacy fields included as None placeholders so that
+    merge_legacy fills them in place rather than appending them.
+    """
+    prov_code = int(comune["COD_PROV"])
+    reg_code = int(comune["COD_REG"])
+    istat = str(comune["PRO_COM_T"]).strip()
+    uts = uts_by_code[prov_code]
+
+    return {
+        "name": comune["COMUNE"],
+        "op_id": None,
+        "minint_elettorale": None,
+        "minint_finloc": None,
+        "prov_name": uts["DEN_UTS"],
+        "prov_istat_code": f"{prov_code:03d}",
+        "prov_istat_code_num": prov_code,
+        "prov_acr": uts["SIGLA"],
+        "reg_name": region_names[reg_code],
+        "reg_istat_code": f"{reg_code:02d}",
+        "reg_istat_code_num": reg_code,
+        "opdm_id": None,
+        "com_catasto_code": catasto,
+        "com_istat_code": istat,
+        "com_istat_code_num": int(istat),
+    }
