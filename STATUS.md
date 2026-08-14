@@ -68,6 +68,13 @@ release notes rather than being discovered by users. Every Sardinian province co
 | 95 | Oristano | 115 Oristano |
 | 111 | Sud Sardegna | abolished; 117 Medio Campidano |
 
+Beware that ISTAT identifies metropolitan cities with two different codes, and its own
+products disagree on which to show. The boundary shapefiles carry `COD_PROV` **112** for
+Sassari and **118** for Cagliari, while `Elenco-comuni-italiani` carries `COD_UTS` **312** and
+**318** for the same two units. This repository has always used the `COD_PROV` family — Rome
+is `058`, not `258` — so 112 and 118 are the correct values here, and cross-checking the table
+above against the codes list will appear to contradict it. It doesn't.
+
 Two consequences:
 
 - The maximum province code is now **119**, so the hardcoded `seq 1 111` in both scripts
