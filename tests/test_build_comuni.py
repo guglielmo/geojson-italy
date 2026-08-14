@@ -6,6 +6,7 @@ import pytest
 from scripts.build_comuni import (
     LEGACY_FIELDS,
     build_properties,
+    index_layers,
     merge_legacy,
     read_catasto_codes,
     read_legacy_by_catasto,
@@ -164,3 +165,16 @@ def test_merge_legacy_leaves_new_municipality_null():
     merged, missing = merge_legacy(props, {})
     assert all(merged[f] is None for f in LEGACY_FIELDS)
     assert missing == ["Bardello con Malgesso e Bregano"]
+
+
+def test_index_layers_extracts_uts_and_regions():
+    prov = {
+        "features": [
+            {"properties": {"COD_PROV": 113, "DEN_UTS": "Gallura Nord-Est Sardegna",
+                            "SIGLA": "OT", "TIPO_UTS": "Provincia"}}
+        ]
+    }
+    reg = {"features": [{"properties": {"COD_REG": 20, "DEN_REG": "Sardegna"}}]}
+    uts, regions = index_layers(prov, reg)
+    assert uts[113]["SIGLA"] == "OT"
+    assert regions[20] == "Sardegna"

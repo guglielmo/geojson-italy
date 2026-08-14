@@ -111,3 +111,83 @@ def merge_legacy(props, legacy_by_catasto):
     for field in LEGACY_FIELDS:
         merged[field] = found[field] if found else None
     return merged, ([] if found else [props["name"]])
+
+
+def index_layers(prov_layer, reg_layer):
+    """Index the province/UTS and region layers by their numeric codes."""
+    uts = {
+        int(f["properties"]["COD_PROV"]): f["properties"]
+        for f in prov_layer["features"]
+    }
+    regions = {
+        int(f["properties"]["COD_REG"]): f["properties"]["DEN_REG"]
+        for f in reg_layer["features"]
+    }
+    return uts, regions
+
+
+# Municipalities present in a boundary edition but absent from a later edition
+# of the spreadsheet, because they were suppressed after the reference date. The
+# cadastral code is taken from the previous release of this repository, where all
+# three are still present.
+CATASTO_OVERRIDES = {
+    "018082": "E608",  # Lirio, absorbed by an existing municipality after 2026-01-01
+    "024027": "C056",  # Castegnero, merged into Castegnero Nanto (024129)
+    "024071": "F838",  # Nanto, same merger
+}
+
+
+def build(year, previous_path, out_path):
+    """Build comuni.geojson for a reference year. Returns a report dict."""
+    src = Path("build/istat") / str(year)
+    comuni = json.loads((src / "Com.geojson").read_text())
+    uts, regions = index_layers(
+        json.loads((src / "ProvCM.geojson").read_text()),
+        json.loads((src / "Reg.geojson").read_text()),
+    )
+    catasto_by_istat = read_catasto_codes(src / "elenco.xlsx")
+    legacy = read_legacy_by_catasto(previous_path)
+
+    features = []
+    missing_catasto = []
+    missing_legacy = []
+    for feature in comuni["features"]:
+        props = feature["properties"]
+        istat = str(props["PRO_COM_T"]).strip()
+        catasto = catasto_by_istat.get(istat) or CATASTO_OVERRIDES.get(istat)
+        if catasto is None:
+            # Present in the boundary edition but not in the later spreadsheet,
+            # e.g. a municipality merged away after the reference date.
+            missing_catasto.append((istat, props["COMUNE"]))
+            catasto = None
+        built = build_properties(props, uts, regions, catasto)
+        built, missing = merge_legacy(built, legacy)
+        missing_legacy.extend(missing)
+        features.append(
+            {"type": "Feature", "properties": built, "geometry": feature["geometry"]}
+        )
+
+    out = {
+        "type": "FeatureCollection",
+        "crs": {"type": "name", "properties": {"name": "EPSG:4326"}},
+        "features": features,
+    }
+    Path(out_path).write_text(json.dumps(out, ensure_ascii=True))
+    return {
+        "count": len(features),
+        "missing_catasto": missing_catasto,
+        "missing_legacy": sorted(missing_legacy),
+    }
+
+
+if __name__ == "__main__":
+    import sys
+
+    report = build(sys.argv[1], "comuni.geojson.prev", "comuni.geojson")
+    print(f"features: {report['count']}")
+    print(f"without cadastral code: {len(report['missing_catasto'])}")
+    for istat, name in report["missing_catasto"]:
+        print(f"  {istat} {name}")
+    print(f"without legacy identifiers: {len(report['missing_legacy'])}")
+    for name in report["missing_legacy"]:
+        print(f"  {name}")
