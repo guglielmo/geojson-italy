@@ -284,6 +284,33 @@ New fields:
 **D9 — Geometry comes from ISTAT directly. The identity source is read-only, and supplies
 only identity.**
 
+> **Revised 14 August 2026 — identity comes from ISTAT too.**
+>
+> D9 was written assuming the identity history could only come from a reconstruction
+> maintained elsewhere. That assumption is wrong: ISTAT publishes the underlying variation
+> records itself, through the SITUAS service, with **no authentication**.
+>
+> Verified: the catalogue at `situas.istat.it/ShibO2Module/api/Report/ReportByUrl` answers
+> anonymously and lists 77 datasets with their download links. The ones this milestone needs
+> are `129` (municipal variations, the master list from 1991), `98` (suppressed
+> municipalities, which carries `COD_CATASTO` — our key), `104` (name changes) and `105`
+> (statistical code changes), plus their province and region equivalents. Coverage starts
+> **17 March 1861**, against 1991 for the derived reconstruction.
+>
+> This matters beyond removing a dependency. The reconstruction does not hold data ISTAT
+> lacks; it holds an *interpretation* of ISTAT's variation records — and at least one is
+> wrong. It reads any record classified `ES` carrying a related code as a merger into that
+> code. For Baranzate the 2003 `ES` record concluded its detachment from Bollate, not a
+> merger back into it, so the reconstruction records a municipality that still exists as
+> extinct since 2003. Reading the source ourselves lets us fail on an ambiguous
+> classification instead of assuming one, which is what §6's "any further case must fail the
+> build" already asks for.
+>
+> **Not yet verified**: the record layout and the full `DESC_COD_VARIAZIONE` taxonomy, since
+> `situas-servizi.istat.it` was returning 503 when this was written. Until that is read, it
+> is not established that every case is distinguishable — which is precisely where the
+> derived reconstruction went wrong, so it is the check that matters most.
+
 | Layer | Source |
 | --- | --- |
 | Geometry | The ISTAT edition zip for each reference date, downloaded and read by this project |
