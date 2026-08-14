@@ -84,6 +84,38 @@ Two consequences:
   empty `GeometryCollection`. Anyone who pinned those files for Sardinia gets a valid-looking
   file with no features rather than an error. Say so explicitly in the CHANGELOG.
 
+#### The break reaches the municipality identifier, not just the province
+
+Verified against the data: **all 377 Sardinian `com_istat_code` values change, with zero
+overlap** between the current release and the 1 January 2026 vintage. The municipality code
+embeds the province code, so renumbering the provinces renumbered every municipality under
+them. `com_istat_code` is the primary key most consumers join on, which makes this the most
+disruptive part of the release.
+
+The new code cannot be derived from the old one by substituting the province prefix, because
+the progressive part was renumbered too — Aggius goes `090001` → `113001` while Aglientu goes
+`090062` → `113002`. Any consumer attempting a string fix-up will produce plausible, wrong
+codes.
+
+`com_catasto_code` is the stable key across the reform: it is unique over the 377 Sardinian
+municipalities and unaffected by provincial reassignment. It is the right join column for a
+time-variant crosswalk, and the only one in the current metadata that survives.
+
+The Sud Sardegna dismemberment splits **five** ways, not the three usually reported:
+
+| To | Municipalities |
+| --- | --- |
+| 118 Cagliari (metropolitan city) | 53 |
+| 117 Medio Campidano | 28 |
+| 119 Sulcis Iglesiente | 24 |
+| 116 Ogliastra | 1 — Seui |
+| 114 Nuoro | 1 — Seulo |
+
+Seui and Seulo are adjacent, near-homonymous Barbagia municipalities that ended up in
+different provinces; they are the case a hand-written crosswalk gets wrong. Note also that
+Cagliari's metropolitan city draws only 17 of its 70 municipalities from the former province
+92, the other 53 coming from Sud Sardegna.
+
 **Note for whoever does this:** `CLAUDE.md` describes the province loop bound of 111 as
 intentional. Verified against the 1 January 2026 data, it is now a defect — see the breaking
 change above. Codes 104–107 stay vacant, but 111 joins them and 112–119 come into use.
