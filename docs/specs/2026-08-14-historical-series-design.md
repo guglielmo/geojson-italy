@@ -14,9 +14,11 @@ The repository was originally intended to serve boundaries at different points i
 with git tags as the mechanism. That mechanism does not scale — see §3 — and no tag exists
 for anything before 2019, so the archive has to be built rather than accumulated.
 
-The source material is the territorial reconstruction already built for the MAPS project
-(`gst-maps-pipelines`), which holds a date-framed model of territories, identifiers,
-containment, succession and geometry.
+Two sources, each for what only it can provide: ISTAT publishes the geometry for every
+reference date, and the territorial reconstruction built for the MAPS project
+(`gst-maps-pipelines`) holds the date-framed identity history — which entity is which across
+mergers, splits and recodings — which cannot be derived from shapefiles. MAPS is read
+only; see D9.
 
 ## 2. Decisions
 
@@ -75,10 +77,23 @@ would be ~4.3 GB of tree and ~1.8 GB of history, against GitHub's 1 GB guidance.
 interval-based dataset holds the same information in 209 MB because it stores one row per
 *period*, not per year.
 
-Deduplication was investigated and rejected. Exact-geometry deduplication yields a
-redundancy factor of only 1.11 — geometries genuinely differ between editions.
-Tolerance-based deduplication would collapse them (224 of 250 sampled municipalities differ
-by less than 0.01% of area between the 2011 and 2012 editions) but is excluded by D2.
+Two kinds of deduplication must be kept apart, because one is essential and the other is
+forbidden.
+
+**Exact-equality interval collapsing is used, and is what makes the archive affordable.**
+ISTAT re-generalises its geometries only in some editions — 2002, 2010, 2011, 2012, 2019,
+2021, 2022 and 2025 — and in the intervening years republishes them byte-identically, so only
+administratively affected municipalities differ. Reading all 26 editions and merging
+consecutive identical geometries into one validity interval is therefore lossless: it discards
+no published geometry, only repetitions of it. This is what reduces roughly 205,000
+edition-instances to about 74,600 versions and 209 MB. It does not offend D2, which forbids
+altering published geometry, not storing it once.
+
+**Tolerance-based deduplication is excluded by D2.** It would collapse far more — 224 of 250
+sampled municipalities differ by less than 0.01% of area between the 2011 and 2012 editions,
+a difference invisible on a map — but doing so would mean publishing one edition's geometry
+under another edition's date. Residual exact duplication after interval collapsing is only
+1.11×, so nothing further is available without crossing that line.
 
 ## 4. Architecture
 
@@ -242,38 +257,66 @@ New fields:
 
 `geometry`, MultiPolygon, EPSG:4326, at source resolution.
 
-## 6. Sourcing from MAPS
+## 6. Sourcing
 
-MAPS is a valid and complete source. Coverage was verified by resolving every existing
-municipality at dates inside the sparse years: 8,100 of 8,102 at 2005-06-01, 8,045 of 8,048
-at 2015-06-01, 7,900 of 7,902 at 2023-06-01. The sparse years are deltas layered on open
-intervals, not gaps.
+**D9 — Geometry comes from ISTAT directly. MAPS is read-only, and supplies only identity.**
 
-Four defects must be fixed before or during the extraction. They are upstream, in
-`gst-maps-pipelines`, not here.
+| Layer | Source |
+| --- | --- |
+| Geometry | The ISTAT edition zip for each reference date, downloaded and read by this project |
+| Identity, codes, validity intervals, succession | MAPS `silver.territor*`, read-only |
 
-**P1 — Edition 2021 was ingested from the wrong ISTAT product.** The ingestion flow treats
-2001, 2011 and 2021 as census years and fetches `Limiti{year}_g.zip`. For 2021 both products
-exist — `Limiti01012021_g.zip` (11.6 MB, annual) and `Limiti2021_g.zip` (12.2 MB, census) —
-and the census one was loaded. This produces a spurious discontinuity affecting every
-municipality: Campagnano di Roma shows 3.5% of area changed between 2020 and 2021 and back
-again in 2022; La Maddalena shows 12%. Reload from the annual file.
+The split follows what each source is uniquely good at. ISTAT publishes the geometry and is
+its only authority. MAPS holds something that cannot be derived from shapefiles at all: the
+reconstructed history of which entity is which across mergers, splits and recodings, with
+effective dates. Neither substitutes for the other.
 
-For 2001 and 2011 only the census edition exists, so those years are correct as they stand.
+Three reasons this is better than sourcing geometry through MAPS:
 
-**P2 — Edition 2026 is not loaded.** The latest edition in MAPS is 2025.
+1. **No coordination with another project.** Nothing in `gst-maps-pipelines` has to change, and
+   this milestone does not wait on another roadmap.
+2. **D2 gets stronger.** Geometry never passes through an intermediate store, so
+   `source_edition` names the file actually read and the round-trip check in §8 becomes close
+   to tautological. Fidelity stops being a property of a pipeline and becomes a property of a
+   download.
+3. **No inherited quirks.** The MAPS geometry table carries artefacts of its own ingestion —
+   the 2021 edition loaded from the census product rather than the annual one, which fabricates
+   a 3.5% to 12% discontinuity across every municipality; and Misiliscemi given a geometry
+   dated 2021-01-01, before it legally existed. Reading ISTAT directly avoids both without
+   asking anyone to fix them.
 
-**P3 — The 2002–2010 gap recorded in the ingestion flow does not exist.** The code comments
-that those years are unavailable in generalised format and skips them on 404. Verified
-otherwise: `Limiti01012003_g.zip`, `…2005…`, `…2007…`, `…2009…` all resolve, 11.7–12.5 MB
-each. The comment should be corrected so the error is not reproduced.
+ISTAT coverage is complete and verified: annual editions resolve for every year from 2001 to
+2026. The "2002–2010 unavailable" gap recorded in the MAPS ingestion code does not exist —
+`Limiti01012003_g.zip`, `…2005…`, `…2007…` and `…2009…` all return 11.7–12.5 MB. For 2001 and
+2011 only the census edition exists, so it is the source for those two years by necessity.
 
-**P4 — Two to seven municipalities per date have no geometry.** Small but real; quantify and
-resolve.
-
-One discontinuity must be **kept**: between the 2022 and 2025 editions ISTAT genuinely
+One discontinuity is **kept, not fixed**: between the 2022 and 2025 editions ISTAT genuinely
 reduced detail (annual file 11.9 MB in 2022 against 10.4 MB in 2025 and 2026). Under D2 this
-is the source's own behaviour and is preserved, flagged as `source_regeneralization`.
+is the source's own behaviour, flagged `source_regeneralization`.
+
+### Municipalities that exist before their geometry does
+
+ISTAT publishes boundaries only at 1 January, so a municipality created during the year is
+absent from the edition covering its first months. There are 39 such municipalities since 2001,
+across 23 dates. The rule has three branches, and every result records how it was obtained.
+
+**Created by merger — 35 cases.** Geometry is the union of its predecessors' geometries from
+the applicable edition. This is arithmetic on published data, not reconciliation, so it does
+not offend D2 — it is the same operation ISTAT itself uses to aggregate provinces from
+municipalities. Recorded as `source_edition = "<edition> (union of predecessors)"`.
+
+**Created by detachment — 4 cases**, named exhaustively because they need individual handling:
+Fonte Nuova (2001-10-15), Baranzate (2001-12-12), Mappano (2017-04-18) and Misiliscemi
+(2021-02-20). A detached municipality's boundary cannot be derived from its predecessor, which
+continues to exist with a reduced area. Geometry is taken from the next edition in which the
+municipality appears, recorded as `source_edition = "<later edition> (anticipated)"`.
+
+These four also expose a gap in the MAPS succession graph: it holds no `split_into`
+relationship for any of them, so they cannot be distinguished from unrelated new entities
+programmatically. Hence the explicit list.
+
+**Any further case** must fail the build rather than be guessed. A silent fallback here would
+reproduce exactly the failure mode this design exists to avoid.
 
 ### Metadata that cannot be reconstructed
 
@@ -321,10 +364,11 @@ The archive is only credible if its fidelity claim is mechanically checked.
 
 - Geometry differs between editions for reasons that are not administrative. This is
   deliberate under D2 and is what `version_reason` exists to explain.
-- ISTAT publishes boundaries only at 1 January. An intra-year change of *boundary* would have
-  no geometry at its effective date; the archive carries the preceding geometry with the new
-  attributes. Intra-year changes of code or assignment, which are the common case, are
-  represented exactly.
+- ISTAT publishes boundaries only at 1 January, so intra-year events are not evenly served.
+  A change of code or of provincial assignment — the common case — is represented exactly,
+  because it does not move a boundary. A boundary change to an existing municipality carries
+  the preceding edition's geometry until the next edition. A municipality created during the
+  year is handled by the three-branch rule in §6.
 - Depth stops at 2001. ISTAT publishes census boundaries for 1991, and MAPS variation data
   starts 1991-12-10, so the series can be extended backwards later without schema change.
 - The four openpolis and interior-ministry identifiers are absent for extinct municipalities
