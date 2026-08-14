@@ -13,6 +13,9 @@ The open issues have been triaged: three were closed (two resolved or superseded
 of scope), three confirmed defects are tracked under the `2026.1` milestone, and three
 remain open as planned work or open questions.
 
+Beyond the pending data release, the substantial work ahead is the historical series —
+priority 3 below, tracked under the `historical-series` milestone.
+
 The repository moved from `openpolis/geojson-italy` to
 [`guglielmo/geojson-italy`](https://github.com/guglielmo/geojson-italy), and the default
 branch was renamed `master` → `main` in August 2026. GitHub redirects both, on
@@ -127,7 +130,36 @@ for anything that consumes these files alongside international datasets — incl
 priority 3. It also supersedes #14 (region abbreviations), since ISO-3166-2 is the
 standardised identifier that request was reaching for.
 
-### 3. Interoperability with world-geojson (exploratory)
+### 3. Historical series, 2001 onward (`historical-series` milestone)
+
+The largest piece of work, and the one that returns the repository to its original intent:
+serving boundaries at any past date, not only the current one. Design in
+[docs/specs/2026-08-14-historical-series-design.md](docs/specs/2026-08-14-historical-series-design.md),
+decomposed into issues #24–#32.
+
+The source is the territorial reconstruction built for the MAPS project: a date-framed model
+of territories, identifiers, containment, succession and geometry covering 2001–2025.
+
+Three things shape the design.
+
+**Fidelity to the source, without normalisation.** If ISTAT published a straightened boundary
+segment in a given edition, the archive publishes it straightened. This repository's value is
+provenance; a normalised archive is the maintainer's interpretation carrying ISTAT's
+authority, and a third party cannot falsify it.
+
+**A surrogate stable identity.** The Sardinian reform changed all 377 Sardinian
+`com_istat_code` values with zero overlap, because the municipal code embeds the province
+code. No dataset keyed on the ISTAT code can express continuity across that event. The
+archive keys on a surrogate identifier and treats the ISTAT code as what it is — an attribute
+with a validity period.
+
+**Consumers download files and never run code.** Every one of the 58 change dates from 2001
+is pre-materialised and published as release assets, with an index mapping validity intervals
+to releases. Publishing only 1 January editions would be wrong rather than merely coarse: 32
+of those 58 dates fall inside the year, so an annual series returns plausible, false answers
+for them.
+
+### 4. Interoperability with world-geojson (exploratory)
 
 [`georgique/world-geojson`](https://github.com/georgique/world-geojson) provides global
 coverage and currently has **no subnational breakdown for Italy** — only a country outline
