@@ -23,13 +23,21 @@ pinned URLs still resolve. Don't rely on it for new links: use owner `guglielmo`
 ## Commands
 
 ```sh
+./scripts/fetch_sources.sh 2026        # ISTAT zip + xlsx -> build/istat/2026/, with SHA-256
+.venv/bin/python -m scripts.build_comuni 2026   # + comuni.geojson.prev -> comuni.geojson
+.venv/bin/pytest tests/                # unit tests + per-issue acceptance checks
 ./generate_geojson.sh    # comuni.geojson -> geojson/*.geojson   (unsimplified)
 ./generate_topojson.sh   # comuni.geojson -> topojson/*.topo.json (20% simplified)
 ```
 
-There is no build system, no test suite, no linter. The only requirement is the global
-`mapshaper` CLI (node); the scripts are written against version `0.6.65`, so check
-`mapshaper --version` before assuming flag behaviour matches.
+The shell scripts need the global `mapshaper` CLI (node); verified against `0.6.29`, which
+generated release 2026.1, and written against `0.6.65`. Check `mapshaper --version` before
+assuming flag behaviour matches. The Python scripts need `.venv` from `requirements.txt`
+(`openpyxl`, `pytest`). There is no linter.
+
+`build_comuni.py` reads the previous release from `comuni.geojson.prev`, so a rebuild starts
+with `cp comuni.geojson comuni.geojson.prev`. That file is gitignored and deleted once the
+release is committed.
 
 `encoding=utf8` must stay immediately after the input filename on `-i`, *before* `-clean`.
 Placed after `-clean` it is parsed as an option of that command instead and the encoding is
@@ -42,11 +50,31 @@ run the matching mapshaper command by hand rather than the whole loop.
 
 ## Pipeline architecture
 
-`comuni.geojson` (38 MB, tracked, EPSG:4326/WGS84) is the **single source of truth** and
-is *not* produced by anything in this repo — it is built externally from ISTAT shapefiles
-enriched with openpolis/OPDM identifiers, per the
+`comuni.geojson` (35 MB, tracked, EPSG:4326/WGS84) is the **single source of truth** for
+everything under `geojson/` and `topojson/`. Since release 2026.1 it is itself rebuilt in
+this repository by `scripts/fetch_sources.sh` + `scripts/build_comuni.py`, replacing the
+manual procedure in the
 [wiki](https://github.com/guglielmo/geojson-italy/wiki/How-to-generate-the-limits-files).
-An update cycle therefore starts by replacing that file, not by editing the scripts.
+
+The rebuild joins three sources: the ISTAT boundary edition supplies geometry, names and
+territorial codes; `Elenco-comuni-italiani.xlsx` supplies the cadastral code per ISTAT code;
+the *previous* `comuni.geojson` supplies `op_id`, `opdm_id`, `minint_elettorale` and
+`minint_finloc`, which ISTAT does not publish and which cannot be derived.
+
+Two things about that join are load-bearing:
+
+- **The key is `com_catasto_code`, never the ISTAT code or the name.** The Sardinian reform
+  of 1 January 2026 changed all 377 Sardinian `com_istat_code` values with zero overlap.
+  Names both collide (Calliano in Asti and Trento, San Teodoro in Messina and Sassari) and
+  change, so a name join fails silently.
+- **`-proj wgs84` is required when converting the shapefiles.** The `_WGS84` in the ISTAT
+  filenames names the datum; the `.prj` is `WGS_1984_UTM_Zone_32N` with `UNIT["Meter"]`.
+  Without the reprojection the output carries metres.
+
+`CATASTO_OVERRIDES` in `build_comuni.py` covers municipalities present in a boundary edition
+but already suppressed in the spreadsheet — they are absent from the later edition because
+they were merged away *after* the reference date. Any municipality that reaches the end of
+the build without a cadastral code is reported and must be investigated, not defaulted.
 
 Two deliberately asymmetric derivation paths:
 
@@ -66,14 +94,15 @@ Two deliberately asymmetric derivation paths:
 - **`gj2008` on every GeoJSON output.** Emits pre-RFC 7946 GeoJSON (winding order, `crs`)
   for D3 and everything built on it (Plotly). Dropping it silently breaks downstream
   D3 renderings — see mapshaper issue #432.
-- **Blind loops over code ranges — but the upper bound is currently wrong.** The scripts
-  iterate regions `1..20` and provinces `1..111`. Emitting a file for a code with no
-  surviving province is *intentional*: consumers get a stable URL and an empty
-  `GeometryCollection` instead of a 404, so don't add existence checks that stop emitting
-  them. The bound itself is a different matter — the ISTAT vintage of 1 January 2026
-  renumbered the Sardinian provinces up to code **119**, so `seq 1 111` would silently drop
-  all of Sardinia. Raise it to `119` (or derive it from the data) as part of adopting that
-  vintage; see `STATUS.md`. Vacant codes as of that vintage: 90, 91, 92, 95, 104–107, 111.
+- **Blind loops over code ranges, with the bound derived from the data.** The scripts
+  iterate regions `1..20` and provinces `1..MAX_PROV`, where `MAX_PROV` is computed
+  from `comuni.geojson` at run time. Emitting a file for a code with no surviving
+  province is *intentional*: consumers get a stable URL and an empty
+  `GeometryCollection` instead of a 404, so don't add existence checks that stop
+  emitting them. Do not hardcode the bound either — it was `111` until the 1 January
+  2026 vintage renumbered the Sardinian provinces up to 119, at which point the
+  literal would have silently dropped all of Sardinia. Vacant codes in that vintage:
+  90, 91, 92, 95, 104–107, 111.
 - **Filenames are not zero-padded** (`limits_P_58_municipalities.geojson`), while the
   `prov_istat_code` / `reg_istat_code` *properties* are (`"058"`). Both forms exist on
   purpose; `*_istat_code_num` is the integer used by `-filter`.

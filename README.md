@@ -12,7 +12,13 @@ As administrative limits change continuously, the files are upgraded periodicall
 
 Historical versions, year by year, are published as tags, currently only 2019 and 2021 are present.
 
-The main branch currently contains limits as of June 2023.
+The main branch currently contains limits as of 1 January 2026.
+
+> **Breaking change in release 2026.1.** The Sardinian reform effective 1 January 2026
+> renumbered every Sardinian province — codes 90, 91, 92, 95 and 111 are vacant, the new
+> units occupy 112 to 119 — and with them **all 377 Sardinian `com_istat_code` values**,
+> with no overlap against the previous release. Join on `com_catasto_code`, which is stable
+> across the reform. See the [CHANGELOG](CHANGELOG.md) before upgrading.
 
 # Canonical home
 
@@ -93,6 +99,20 @@ To generate all files, starting from the `comuni.geojson` file:
   ./generate_geojson.sh
   ./generate_topojson.sh
 ```
-The [mapshaper client](https://github.com/mbloch/mapshaper), based on [node js](https://nodejs.org/en/), is **required** by the scripts to work. These are currently based on mapshaper version `0.6.65`
+The [mapshaper client](https://github.com/mbloch/mapshaper), based on [node js](https://nodejs.org/en/), is **required** by the scripts to work. They are known to work with mapshaper `0.6.29` — the version release 2026.1 was generated with — and `0.6.65`.
 
-How the `comuni.geojson` file is generated, and other scripts' internals are described in [this wiki page](https://github.com/guglielmo/geojson-italy/wiki/How-to-generate-the-limits-files).
+The `comuni.geojson` file itself is rebuilt from the ISTAT sources:
+```
+  python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+  ./scripts/fetch_sources.sh 2026
+  cp comuni.geojson comuni.geojson.prev
+  .venv/bin/python -m scripts.build_comuni 2026
+  .venv/bin/pytest tests/
+```
+`fetch_sources.sh` downloads the ISTAT boundary edition and `Elenco-comuni-italiani.xlsx`,
+recording the SHA-256 of each. `build_comuni.py` joins them with the previous release, which
+is the only source of the `op_id`, `opdm_id`, `minint_elettorale` and `minint_finloc`
+identifiers; the join key is `com_catasto_code`, since the ISTAT code is not stable across
+provincial reassignment.
+
+Older releases were built by hand following [this wiki page](https://github.com/guglielmo/geojson-italy/wiki/How-to-generate-the-limits-files), which the scripts above supersede.
