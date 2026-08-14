@@ -8,6 +8,13 @@ IFS='
 
 CDPATH= cd -- "$(dirname -- "$0")"
 
+# The highest province code in the data. Hardcoding it silently dropped all of
+# Sardinia when the 2026 reform renumbered its provinces up to 119.
+MAX_PROV=$(mapshaper -i comuni.geojson encoding=utf8 \
+    -filter-fields prov_istat_code_num \
+    -o - format=csv | tail -n +2 | sort -un | tail -1)
+echo "highest province code in the data: ${MAX_PROV}"
+
 mapshaper \
     -i comuni.geojson encoding=utf8 -clean \
     -simplify 20% weighted \
@@ -33,7 +40,7 @@ for REG in $(seq 1 20); do
         -o topojson/limits_R_${REG}_municipalities.topo.json bbox format=topojson
 done
 
-for PROV in $(seq 1 111); do
+for PROV in $(seq 1 "$MAX_PROV"); do
     mapshaper \
         -i topojson/limits_IT_municipalities.topo.json \
         -filter prov_istat_code_num==$PROV \

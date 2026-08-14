@@ -10,6 +10,13 @@ CDPATH= cd -- "$(dirname -- "$0")"
 
 cp comuni.geojson geojson/limits_IT_municipalities.geojson
 
+# The highest province code in the data. Hardcoding it silently dropped all of
+# Sardinia when the 2026 reform renumbered its provinces up to 119.
+MAX_PROV=$(mapshaper -i comuni.geojson encoding=utf8 \
+    -filter-fields prov_istat_code_num \
+    -o - format=csv | tail -n +2 | sort -un | tail -1)
+echo "highest province code in the data: ${MAX_PROV}"
+
 mapshaper \
     -i geojson/limits_IT_municipalities.geojson encoding=utf8 -clean \
     -rename-layers municipalities \
@@ -30,7 +37,7 @@ do
     -o geojson/limits_R_${REG}_municipalities.geojson bbox format=geojson gj2008
 done
 
-for PROV in $(seq 1 111)
+for PROV in $(seq 1 "$MAX_PROV")
 do
   mapshaper \
     -i geojson/limits_IT_municipalities.geojson encoding=utf8 -clean \
