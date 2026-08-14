@@ -26,20 +26,60 @@ should be updated to the current owner and branch.
 The single highest-value item: it is what current users are actually blocked on, and it
 resolves four open issues at once. Steps:
 
-1. Determine the current ISTAT vintage at the
-   [reference permalink](https://www.istat.it/it/archivio/222527).
+The target vintage is **1 January 2026**, published by ISTAT on 2 March 2026 at the
+[reference permalink](https://www.istat.it/it/archivio/222527):
+
+- non-generalised: `confini_amministrativi/non_generalizzati/2026/Limiti01012026.zip` (~94 MB)
+- generalised: `confini_amministrativi/generalizzati/2026/Limiti01012026_g.zip` (~10 MB)
+
+It contains **7,896 municipalities** and **110 provinces/UTS**, against 7,899 municipalities
+in the current release. It already incorporates the Sardinian reform, so it resolves #23
+directly.
+
+Steps:
+
+1. **Raise the province loop bound in both generation scripts before anything else** — see
+   the breaking change below. Leaving it at `111` silently drops all of Sardinia.
 2. Rebuild `comuni.geojson` from the ISTAT shapefiles (procedure in the
    [wiki](https://github.com/guglielmo/geojson-italy/wiki/How-to-generate-the-limits-files)),
    fixing the defects listed below in the process.
 3. Regenerate all outputs (`./generate_geojson.sh`, `./generate_topojson.sh`).
-4. Verify visually that no municipality holes remain (see #18) and that municipality
-   counts reconcile against the ISTAT `Elenco-comuni-italiani` list.
+4. Verify the municipality count reconciles to 7,896, that Sardinia has 377
+   municipalities spread over province codes 112–119, and visually that no municipality
+   holes remain (#18).
 5. Update `CHANGELOG.md`, the vintage line in `README.md`, and the province-code
-   invariant in `CLAUDE.md` (see note below), then tag `2026.1`.
+   invariant in `CLAUDE.md`, then tag `2026.1`.
 
-**Note for whoever does this:** `CLAUDE.md` documents province codes 104–107 as permanently
-vacant placeholders. The 2025 Sardinian reform (#23) puts those codes back in play, so that
-invariant has to be re-checked and rewritten as part of this release, not assumed.
+Note that the 1 January 2026 boundaries predate the establishment of Castegnero Nanto
+(merger of Castegnero and Nanto, province of Vicenza, effective 21 February 2026), which
+brings the national count to 7,894. That municipality will only appear in the 1 January
+2027 vintage; expect it to be reported as a defect in the meantime.
+
+#### Breaking change: Sardinian province codes are renumbered
+
+This is not an additive change and it will break downstream consumers, so it belongs in the
+release notes rather than being discovered by users. Every Sardinian province code changed:
+
+| Old code | Old province | New codes |
+| --- | --- | --- |
+| 90 | Sassari | 112 Sassari (metropolitan city), 113 Gallura Nord-Est Sardegna |
+| 91 | Nuoro | 114 Nuoro, 116 Ogliastra |
+| 92 | Cagliari | 118 Cagliari (metropolitan city), 119 Sulcis Iglesiente |
+| 95 | Oristano | 115 Oristano |
+| 111 | Sud Sardegna | abolished; 117 Medio Campidano |
+
+Two consequences:
+
+- The maximum province code is now **119**, so the hardcoded `seq 1 111` in both scripts
+  must become `seq 1 119`. Better still, derive the range from the data.
+- Codes 90, 91, 92, 95 and 111 become vacant, which means
+  `limits_P_90_municipalities.geojson` and friends will still be generated but will hold an
+  empty `GeometryCollection`. Anyone who pinned those files for Sardinia gets a valid-looking
+  file with no features rather than an error. Say so explicitly in the CHANGELOG.
+
+**Note for whoever does this:** `CLAUDE.md` describes the province loop bound of 111 as
+intentional. Verified against the 1 January 2026 data, it is now a defect — see the breaking
+change above. Codes 104–107 stay vacant, but 111 joins them and 112–119 come into use.
 
 ### 2. ISO-3166-2 codes (#22)
 
@@ -74,7 +114,7 @@ First step is an exploratory issue on that repository, not a pull request.
 | --- | --- |
 | #18 | Two municipalities missing relative to the 2023 ISTAT dataset (Bardello con Malgesso e Bregano, established 2023-01-01; Moransengo-Tonengo, recoded 2023-05-15). Produces visible holes in municipality maps. |
 | #15 | Wrong `com_istat_code` for Montecopiolo (should be 099030) and Sassofeltrio (099031). Residue of the `2021.2` release, which updated the Marche → Emilia-Romagna transfer geometry but not the municipal codes. |
-| #23 | Sardinian provinces outdated: the 2025 reform replaced Sud Sardegna with 2 metropolitan cities and 6 provinces. Affects all `limits_P_*` files and provincial aggregation. |
+| #23 | Sardinian provinces outdated: the reform effective 1 January 2026 renumbered every Sardinian province code and replaced Sud Sardegna. Affects all `limits_P_*` files and provincial aggregation — see the breaking change above. |
 
 ## Open questions
 

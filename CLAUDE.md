@@ -66,11 +66,14 @@ Two deliberately asymmetric derivation paths:
 - **`gj2008` on every GeoJSON output.** Emits pre-RFC 7946 GeoJSON (winding order, `crs`)
   for D3 and everything built on it (Plotly). Dropping it silently breaks downstream
   D3 renderings — see mapshaper issue #432.
-- **Blind loops over code ranges.** The scripts iterate regions `1..20` and provinces
-  `1..111` unconditionally. Codes with no surviving province — currently exactly 104–107,
-  the former Sardinian provinces abolished in 2016 — yield committed placeholder files
-  holding an empty `GeometryCollection`. That is intentional: consumers get a stable URL
-  and an empty result instead of a 404. Don't add existence checks that stop emitting them.
+- **Blind loops over code ranges — but the upper bound is currently wrong.** The scripts
+  iterate regions `1..20` and provinces `1..111`. Emitting a file for a code with no
+  surviving province is *intentional*: consumers get a stable URL and an empty
+  `GeometryCollection` instead of a 404, so don't add existence checks that stop emitting
+  them. The bound itself is a different matter — the ISTAT vintage of 1 January 2026
+  renumbered the Sardinian provinces up to code **119**, so `seq 1 111` would silently drop
+  all of Sardinia. Raise it to `119` (or derive it from the data) as part of adopting that
+  vintage; see `STATUS.md`. Vacant codes as of that vintage: 90, 91, 92, 95, 104–107, 111.
 - **Filenames are not zero-padded** (`limits_P_58_municipalities.geojson`), while the
   `prov_istat_code` / `reg_istat_code` *properties* are (`"058"`). Both forms exist on
   purpose; `*_istat_code_num` is the integer used by `-filter`.
