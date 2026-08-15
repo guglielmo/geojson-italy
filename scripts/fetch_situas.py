@@ -104,15 +104,29 @@ def download(url, dest, force=False):
         return len(parse_payload(dest.read_text()))
 
     tmp = dest.with_suffix(dest.suffix + ".part")
-    subprocess.run(
-        ["curl", "-fsSL",
+    proc = subprocess.run(
+        ["curl", "-sS", "-L",
          "--retry", RETRIES,
          "--retry-delay", RETRY_DELAY,
          "--retry-all-errors",
          "-H", "Accept: application/json",
+         "-w", "%{http_code}",
          "-o", str(tmp), url],
-        check=True,
+        capture_output=True, text=True,
     )
+    status = proc.stdout.strip()
+    if proc.returncode != 0 or status != "200":
+        tmp.unlink(missing_ok=True)
+        # 503 here is not an outage: the service refuses some client addresses
+        # for stretches at a time. Saying so is the difference between waiting
+        # and debugging a script that is working correctly.
+        raise RuntimeError(
+            f"SITUAS answered {status or 'nothing'} for {url}\n"
+            f"  {RETRIES} attempts, {RETRY_DELAY}s apart. A 503 that persists "
+            f"means this address is being refused; try from another network "
+            f"rather than retrying harder.\n"
+            f"  {proc.stderr.strip()}"
+        )
     records = parse_payload(tmp.read_text())
     tmp.replace(dest)
     # Only after a real request: a cache hit costs the service nothing and
