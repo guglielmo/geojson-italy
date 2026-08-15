@@ -43,6 +43,25 @@ _CENSUS_YEARS = (1991, 2001, 2011, 2021)
 _EARLIEST = 1991
 _LATEST = 2026
 
+# The reference date of each census edition. A census edition is *not* the state
+# at 1 January of its year, and treating it as one publishes municipalities that
+# did not yet exist at the date claimed:
+#
+#   Limiti2001_g contains Fonte Nuova, constituted 15 October 2001
+#   Limiti2011_g contains Gravedona ed Uniti, constituted 11 February 2011,
+#                in place of its three predecessors
+#
+# Both are exactly the defect this design objects to in derived sources. The
+# dates below are the official census reference dates, and the editions'
+# contents bracket them: the 2001 file holds a municipality created on 15
+# October and not one created on 12 December, so its date lies between the two.
+CENSUS_REFERENCE_DATES = {
+    1991: "1991-10-20",
+    2001: "2001-10-21",
+    2011: "2011-10-09",
+    2021: "2021-10-03",
+}
+
 
 def _check(year):
     year = int(year)
@@ -65,6 +84,20 @@ def edition_filename(year):
     if year in CENSUS_ONLY_YEARS or year == _EARLIEST:
         return f"Limiti{year}_g"
     return f"Limiti0101{year}_g"
+
+
+def edition_reference_date(year):
+    """The date an edition's boundaries actually describe, as an ISO string.
+
+    1 January for the annual editions, and the census date for the two years
+    where only the census cartography exists. This is the date the archive dates
+    the geometry at; see CENSUS_REFERENCE_DATES for why the distinction is not
+    pedantry.
+    """
+    year = _check(year)
+    if year in CENSUS_ONLY_YEARS or year == _EARLIEST:
+        return CENSUS_REFERENCE_DATES[year]
+    return f"{year}-01-01"
 
 
 def edition_url(year):

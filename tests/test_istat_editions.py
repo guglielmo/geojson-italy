@@ -7,6 +7,7 @@ from scripts.istat_editions import (
     CENSUS_ONLY_YEARS,
     SERIES_YEARS,
     edition_filename,
+    edition_reference_date,
     edition_url,
 )
 
@@ -73,6 +74,30 @@ def test_1991_is_addressable_though_outside_the_series():
     change. The resolver should already know it."""
     assert edition_url(1991) == f"{BASE}/Limiti1991_g.zip"
     assert 1991 not in SERIES_YEARS
+
+
+def test_an_annual_edition_describes_1_january():
+    assert edition_reference_date(2026) == "2026-01-01"
+    assert edition_reference_date(2012) == "2012-01-01"
+
+
+def test_a_census_edition_describes_the_census_date():
+    """Measured, not assumed: Limiti2001_g contains Fonte Nuova, constituted
+    15 October 2001, and Limiti2011_g contains Gravedona ed Uniti, constituted
+    11 February 2011 out of three municipalities that are absent from it.
+
+    Dating either edition at 1 January would publish a municipality that did
+    not exist at the date claimed — the same defect this project refused to
+    inherit from a derived source.
+    """
+    assert edition_reference_date(2001) == "2001-10-21"
+    assert edition_reference_date(2011) == "2011-10-09"
+
+
+def test_the_2021_reference_date_is_1_january_because_the_source_is_annual():
+    """2021 has both editions and the resolver takes the annual one, so its
+    reference date must follow the file actually read, not the census year."""
+    assert edition_reference_date(2021) == "2021-01-01"
 
 
 def test_edition_filename_identifies_the_source_file():
