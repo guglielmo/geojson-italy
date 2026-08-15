@@ -67,6 +67,13 @@ series is not truncated for size.
 > The binding constraint is therefore geometry at 1991, not identity at 2001. Depth stays at
 > 2001 for this milestone because that is what the measurements in §3 cost out; extending to
 > 1991 is a decision about scope, no longer about availability.
+>
+> **Revised 15 August 2026.** The series begins **21 October 2001**, not 1 January. The 2001
+> edition is the census cartography and describes the census date: it contains Fonte Nuova,
+> constituted 15 October 2001. ISTAT published no boundaries for the preceding nine months,
+> so those dates are not served rather than served with a boundary set that does not describe
+> them. Same rule for 2011, whose edition describes 9 October 2011. See
+> [2026-08-15-identity-layer-measurements.md](2026-08-15-identity-layer-measurements.md).
 
 **D6 — The repository root stays exactly as it is.** `geojson/`, `topojson/` and
 `comuni.geojson` keep their paths, names and contents for the current vintage. Third parties
@@ -84,8 +91,17 @@ All figures measured, not estimated.
 | Same as region-split GeoJSON with properties | ~280 MB working tree, ~80–90 MB in git history |
 | Current repository working tree, one vintage | 170 MB |
 | Current `.git` | 351 MB (five tagged vintages, ~70 MB each) |
-| Distinct change dates, 2001 onward | **58** — 26 on 1 January, **32 intra-year** |
-| Published archive as release assets | 58 dates × ~10 MB gzipped ≈ 600 MB, outside repository size |
+| Distinct change dates, 2001 onward | **98** — 26 edition dates, **72 intra-year** (was estimated 58) |
+| Published archive as release assets | 98 dates × ~10 MB gzipped ≈ 1 GB, outside repository size |
+
+> **Measured, 15 August 2026.** The 58 figure came from the derived source. Derived from
+> ISTAT's own variation records the calendar is **98 dates**: 86 roster changes, 72 of them
+> intra-year, plus the 26 edition reference dates, overlapping on 14. A further 70 dates
+> carry only `CE`/`AQ` territory transfers and are deliberately *not* published — ISTAT
+> publishes no boundary edition on those dates, so a release would serve the preceding
+> edition's geometry under a new date, which is what D2 forbids. Derived in
+> `scripts/change_dates.py`; see
+> [2026-08-15-identity-layer-measurements.md](2026-08-15-identity-layer-measurements.md).
 
 Why the tag mechanism fails: one vintage costs 170 MB of working tree, so 26 tagged vintages
 would be ~4.3 GB of tree and ~1.8 GB of history, against GitHub's 1 GB guidance. The
@@ -176,7 +192,7 @@ is never the consumer interface.
 
 1. **The current date** stays at the repository root, at its existing URLs (D6). Most
    consumers need nothing else.
-2. **Every change date** — all 58 of them from 2001 onward, not only 1 January — is published
+2. **Every change date** — all 98 of them from October 2001 onward, not only 1 January — is published
    as assets on a GitHub Release tagged with that date. Release assets do not count towards
    repository size and are served over a CDN with stable URLs, which is what makes publishing
    the complete series affordable.
@@ -187,7 +203,7 @@ is never the consumer interface.
 the path a consumer takes.
 
 Publishing at every change date rather than every 1 January is not a refinement, it is a
-correctness requirement. Of the 58 change dates, **32 fall inside the year**: a consumer who
+correctness requirement. Of the 98 change dates, **72 fall inside the year**: a consumer who
 needs 2021-09-10 is served by neither the 2021-01-01 nor the 2022-01-01 edition, because
 changes took effect on 2021-02-20 and 2021-06-17. An annual series silently returns the wrong
 answer for those dates, which is worse than not serving them.
@@ -314,7 +330,17 @@ Both layers come from ISTAT, by different routes:
 | Layer | Source | Verified |
 | --- | --- | --- |
 | Geometry | The ISTAT edition zip for each reference date | 26 editions, 2001–2026, §3 |
-| Identity, codes, validity, succession | The SITUAS variation reports | 4 reports, from 1861 |
+| Codes, names, UTS at a date | SITUAS report 61, the roster valid on that date | 26 rosters reconciled against the editions |
+| Reason for a version, enacting act | The SITUAS variation reports | 4 reports, from 1861 |
+
+> **Revised 15 August 2026.** The attribute layer is a *read*, not a reconstruction. SITUAS
+> report 61 returns the complete municipality roster valid on any date since 1948, with the
+> cadastral code, the ISTAT code, `COD_UTS`, `TIPO_UTS` and the names — everything §5 lists
+> under "attributes at that date". Replaying variation records over a starting point is no
+> longer necessary, and a replay was the last place in this design where an unchecked
+> interpretation could reach consumers. The variation reports keep the job only they can do:
+> saying *why* a version exists, which is `version_reason` (#26), and fixing the publication
+> calendar (§3).
 
 ### The SITUAS reports
 
@@ -325,6 +351,7 @@ read those rather than constructing URLs, because the parameter set differs per 
 
 | pfun | Report | Params | Records | From | Key |
 | --- | --- | --- | --- | --- | --- |
+| 61 | Roster of units at a date | `pdata` | ~7,900 per date | 1948 | `COD_CATASTO` per municipality |
 | 129 | Municipal variations | `pdata` | 2,356 | 1991 | `COD_CATASTO` both sides |
 | 98 | Suppressed municipalities | `pdatada`/`pdataa` | 3,618 | 1865 | `COD_CATASTO` both sides |
 | 104 | Name changes | `pdatada`/`pdataa` | 2,765 | 1862 | **no cadastral code** |

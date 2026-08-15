@@ -34,15 +34,22 @@ serving boundaries at any past date, not only the current one. Design in
 decomposed into issues #24–#32.
 
 **Everything comes from ISTAT, and needs no credentials.** Geometry from the edition
-archives — all 26 downloaded and measured, 2001 to 2026. Identity from the SITUAS variation
-reports: which entity is which across mergers, splits and recodings, with effective dates
-and enacting acts, published anonymously with coverage back to 1861.
+archives — all 26 downloaded and measured, 2001 to 2026. Codes, names and territorial
+assignment from SITUAS report 61, which returns the complete roster of municipalities valid
+on any date since 1948. Why each version exists, and under which act, from the SITUAS
+variation reports, published anonymously with coverage back to 1861.
 
 That second half was settled in August 2026. The milestone was designed around a derived
 reconstruction maintained elsewhere; reading ISTAT directly removed the dependency and, with
 it, a defect the derived reading carried — a municipality extinguished in 2003 and
 re-established in 2004 appeared as permanently extinct, because only extinction records were
 being read.
+
+Measured on 15 August (`docs/specs/2026-08-15-identity-layer-measurements.md`): the roster
+and the boundary editions agree on the municipality count for **24 of 26** years, and the two
+that disagree are the census editions, which describe the census date and not 1 January. So
+the series starts **21 October 2001**, and the archive dates each edition at the date it
+actually describes.
 
 Three things shape the design.
 
@@ -59,15 +66,17 @@ attribute with a validity period.
 
 The key has to be public as well as stable: an internal row id from someone's database
 renumbers on re-import and cannot be checked by anyone else. The cadastral code is assigned
-by the Agenzia delle Entrate and republished by ISTAT, and measured across the whole series
-8,229 of 8,230 municipalities carry exactly one for their entire life, with no code ever
-reused. Rules and tests in `scripts/identity.py`.
+by the Agenzia delle Entrate and republished by ISTAT. Measured across the 26 published
+rosters, 8,231 codes appear and exactly one municipality ever changed its own — Lonato del
+Garda, `E667` until 2008 — while the only code whose presence is interrupted is Baranzate's,
+missing from the 2004 roster alone, which is the extinction and re-establishment rather than
+a reuse. Rules and tests in `scripts/identity.py`.
 
-**Consumers download files and never run code.** Every one of the 58 change dates from 2001
-is pre-materialised and published as release assets, with an index mapping validity intervals
-to releases. Publishing only 1 January editions would be wrong rather than merely coarse: 32
-of those 58 dates fall inside the year, so an annual series returns plausible, false answers
-for them.
+**Consumers download files and never run code.** Every one of the 98 change dates from
+October 2001 is pre-materialised and published as release assets, with an index mapping
+validity intervals to releases. Publishing only 1 January editions would be wrong rather than
+merely coarse: 72 of those 98 dates fall inside the year, so an annual series returns
+plausible, false answers for them.
 
 ### 2. Interoperability with world-geojson (exploratory)
 
