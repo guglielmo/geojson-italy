@@ -282,8 +282,11 @@ def index_rows(calendar, root=TEMPORAL):
 def write_index(rows, path=INDEX):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
+    # LF, not the CRLF csv defaults to: this file is read by people and by git
+    # as much as by csv readers.
     with open(path, "w", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0]),
+                                lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
     return path
