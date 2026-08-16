@@ -191,7 +191,8 @@ the following edition.
 geometries in some editions and not others — 2002, 2010, 2011, 2012, 2019, 2022 and 2025 — so
 comparing two adjacent years shows roughly 7,900 changed boundaries and means nothing
 happened. Every feature carries `version_reason`: `source_regeneralization` is ISTAT redrawing
-its own lines, and the `admin_*` values are the real events. Filter on it.
+its own lines, `source_attribute_change` is a published field changing with the boundary
+untouched, and the `admin_*` values are the real events. Filter on it.
 
 **A municipality ISTAT had not yet drawn says so** in `source_edition`:
 `(union of predecessors)` where a merger's boundary is its predecessors' dissolved together,

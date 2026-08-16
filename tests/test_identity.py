@@ -202,6 +202,21 @@ def test_a_version_with_no_administrative_cause_is_a_regeneralisation():
         "source_regeneralization"
 
 
+def test_an_unchanged_geometry_is_not_reported_as_redrawn():
+    """ISTAT's roster began carrying NUTS codes in 2006, so every published
+    record changed while about 310 boundaries moved. Calling all 7,966 of them
+    a re-generalisation would show a nationwide redrawing that never happened.
+    """
+    assert version_reason("A074", "2006-01-01", "2005-01-01", {}, {},
+                          geometry_changed=False) == "source_attribute_change"
+
+
+def test_an_administrative_event_outranks_both_residuals():
+    events = {"A069": {"2026-01-01": {"own": {"AP"}, "related": set()}}}
+    assert version_reason("A069", "2026-01-01", "2025-01-01", {}, events,
+                          geometry_changed=False) == "admin_riassegnazione"
+
+
 def test_an_event_outside_the_window_does_not_explain_the_version():
     events = {"A794": {"2010-02-13": {"own": {"CE"}, "related": set()}}}
     assert version_reason("A794", "2025-01-01", "2024-01-01", {}, events) == \

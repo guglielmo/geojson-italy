@@ -74,9 +74,16 @@ interval has a hole, and bridging it would publish a municipality that had been 
 | `admin_riassegnazione` | Moved to a different province or region. |
 | `admin_variazione_territoriale` | Boundary moved by a transfer of territory between municipalities. |
 | `source_regeneralization` | ISTAT republished the geometry with different vertices; no administrative change. |
+| `source_attribute_change` | A published attribute changed with no administrative event and **no change to the boundary**. |
 
-The last value is a **residual**: it is assigned only where no administrative event accounts
+The last two are **residuals**: they are assigned only where no administrative event accounts
 for the version. A merger falling in a year ISTAT re-generalised is a merger.
+
+They are kept apart because conflating them shows changes that never happened. ISTAT's roster
+began carrying NUTS codes in 2006, so at 2006-01-01 the published record of every municipality
+changed while roughly 310 boundaries moved. Under one residual all 7,966 would read as a
+nationwide redrawing — the exact confusion this field exists to prevent. `source_regeneralization`
+therefore requires the geometry to have actually changed.
 
 Two of these values are additions to the design's original six. `admin_cambio_denominazione`
 exists because 50 records since 1991 rename a municipality without touching its code, and
@@ -178,13 +185,25 @@ published geometry.
 
 ## What is checked
 
-`python -m scripts.validate_temporal`, run against the built dataset:
+`python -m scripts.validate_temporal`, run against the built dataset. `--quick` skips the
+last one, which reads every edition and the whole archive once per edition.
 
-- **interval integrity** — no overlaps, every interval closing where the next opens;
+- **interval integrity** — no overlaps, every interval closing where the next opens, and one
+  version per entity per date;
 - **counts against the roster** — at each of the 98 publication dates the archive holds
   exactly as many municipalities as ISTAT's own roster does for that date;
 - **continuity across the Sardinian reform** — all 377 municipalities resolve to the same
-  `terr_key` before and after 1 January 2026.
+  `terr_key` before and after 1 January 2026, which is the event that breaks any dataset
+  keyed on the ISTAT code;
+- **dissolving** — the number of provinces and regions the archive yields at a date equals
+  the number the roster lists for it. The roster counts them under `COD_UTS` and the archive
+  under `COD_PROV`: agreeing on the count is what proves the two families describe the same
+  units;
+- **round trip against the source** — at every edition's reference date, each municipality's
+  geometry is exactly the one in the file `source_edition` names, compared coordinate for
+  coordinate. An area comparison would pass on a shape that had been quietly resampled.
+  Derived boundaries are exempt and must declare themselves; an undeclared exemption is how
+  a derived boundary would pass for a published one.
 
 ## Rebuilding it
 

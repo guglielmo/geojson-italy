@@ -31,7 +31,8 @@ from pathlib import Path
 from scripts.change_dates import change_dates, load_variations
 from scripts.istat_editions import SERIES_YEARS, edition_filename, edition_reference_date
 from scripts.materialize import snapshot
-from scripts.build_temporal import read_edition_geometries
+from scripts.build_temporal import edition_geometries_by_key
+from scripts.identity import identity_links
 from scripts.rosters import read_roster
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -122,50 +123,67 @@ def sardinian_continuity(grouped, before="2025-12-31", after="2026-01-01"):
     return continuous, broken
 
 
-def round_trip_problems(years=SERIES_YEARS):
-    """Check 1: the geometry at an edition's date is that edition's geometry.
+def round_trip_problems(links=None, years=SERIES_YEARS, root=TEMPORAL):
+    """Check 1: every version's geometry is the one the file it names holds.
 
-    `source_edition` claims each boundary was read from a named ISTAT file, and
-    this is what gives the claim meaning: at the reference date of every
-    edition, each municipality's geometry must be **exactly** the one in that
-    file — compared coordinate for coordinate, not by area or bounding box,
-    because an area comparison passes on a shape that has been quietly
-    resampled.
+    `source_edition` claims a boundary was read from a named ISTAT file. This
+    is what gives the claim meaning — compared coordinate for coordinate, not
+    by area or bounding box, because an area comparison passes on a shape that
+    has been quietly resampled.
 
-    The municipalities ISTAT had not yet drawn are exempt and must say so:
-    their `source_edition` carries `(union of predecessors)` or `(anticipated)`.
-    An exemption that does not declare itself is a failure — that is exactly how
-    a derived boundary would pass for a published one.
+    It checks the claim each version actually makes, not the edition applicable
+    at some date. Those differ, and the difference is the point of interval
+    collapsing: where ISTAT republishes a geometry unchanged, the version keeps
+    the edition it began in. Bolzano/Bozen is valid on 17 June 2021 carrying
+    `Limiti01012020_g`, because its boundary has not moved since — and the 2021
+    file holds the same bytes, so the claim is true either way. An earlier
+    version of this check demanded the applicable edition and would have failed
+    on almost every municipality in the archive.
 
-    Slow on purpose: it reads all 26 editions and the whole archive once per
-    edition, because the cheap version of this check is the one that proves
-    nothing.
+    Municipalities ISTAT had not yet drawn are exempt and must say so: their
+    `source_edition` carries `(union of predecessors)` or `(anticipated)`. An
+    exemption that does not declare itself is a failure — that is exactly how a
+    derived boundary would pass for a published one.
+
+    Slow on purpose: 26 editions against the whole archive, once per edition.
+    The cheap version of this check is the one that proves nothing.
     """
+    links = {} if links is None else links
     problems = []
+    checked, derived = 0, 0
     for year in years:
-        at = edition_reference_date(year)
-        published = read_edition_geometries(year)
+        # Keyed on identity, never on the ISTAT code. That code changes with
+        # the province, so at 30 June 2009 the 51 municipalities of the new
+        # Monza e della Brianza carry 108xxx while the applicable edition still
+        # has them under Milan — the same trap that cost the join 310
+        # municipalities, met a second time here.
+        published, _ = edition_geometries_by_key(year, links)
         edition = edition_filename(year)
-        derived = 0
-        for feature in snapshot(at)["features"]:
-            props = feature["properties"]
-            source = props.get("source_edition") or ""
-            if "(" in source:
-                derived += 1
-                continue
-            if source != edition:
-                problems.append(
-                    f"{at}: {props['com_istat_code']} claims {source}, "
-                    f"the applicable edition is {edition}")
-                continue
-            theirs = published.get(props["com_istat_code"])
-            if theirs is None:
-                problems.append(
-                    f"{at}: {props['com_istat_code']} is not in {edition}")
-            elif theirs != feature["geometry"]:
-                problems.append(
-                    f"{at}: {props['com_istat_code']} differs from {edition}")
-        print(f"  {at}  {edition}  {derived} derived boundaries declared")
+        matched = 0
+        for path in sorted(Path(root).glob("reg=*.geojson")):
+            data = json.loads(path.read_text())
+            for feature in data["features"]:
+                props = feature["properties"]
+                source = props.get("source_edition") or ""
+                if not source.startswith(edition):
+                    continue
+                if "(" in source:
+                    derived += 1
+                    continue
+                matched += 1
+                theirs = published.get(props["terr_key"])
+                if theirs is None:
+                    problems.append(f"{props['com_istat_code']} "
+                                    f"({props['valid_from']}) claims {edition}, "
+                                    f"which does not contain it")
+                elif theirs != feature["geometry"]:
+                    problems.append(f"{props['com_istat_code']} "
+                                    f"({props['valid_from']}) differs from "
+                                    f"the geometry in {edition}")
+            del data
+        checked += matched
+        print(f"  {edition}  {matched} versions verified vertex for vertex")
+    print(f"  {checked} versions checked, {derived} declared as derived")
     return problems
 
 
@@ -229,7 +247,7 @@ def main():
 
     if "--quick" not in sys.argv:
         print("round trip against the ISTAT editions:")
-        problems = round_trip_problems()
+        problems = round_trip_problems(identity_links(variations))
         print(f"  {'ok, all 26 editions' if not problems else problems[:5]}")
         failures += len(problems)
 

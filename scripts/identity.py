@@ -205,6 +205,7 @@ VERSION_REASONS = (
     "admin_riassegnazione",
     "admin_variazione_territoriale",
     "source_regeneralization",
+    "source_attribute_change",
 )
 
 # Which variation code implies which reason, when it falls on the version's own
@@ -249,13 +250,21 @@ def events_by_key(records, links):
     return out
 
 
-def version_reason(key, at, previous, born, events):
+def version_reason(key, at, previous, born, events, geometry_changed=True):
     """Why this version of `key` begins on `at`.
 
     `previous` is the start of the preceding version, or None for the first.
     `source_regeneralization` is a **residual**: it is assigned only when no
     administrative event accounts for the version, never alongside one. A merger
     that happens to fall in a re-generalising year is a merger.
+
+    `geometry_changed` separates the two residuals, and the distinction is not
+    academic. ISTAT's roster began carrying NUTS codes in 2006, so at
+    2006-01-01 every municipality's published record changed while only about
+    310 boundaries moved. Labelling all 7,966 of them `source_regeneralization`
+    would show a consumer a nationwide redrawing that never happened — the
+    exact confusion this field exists to prevent. A version whose geometry is
+    unchanged is `source_attribute_change`.
     """
     creation = creation_at(born, key, at)
     if previous is None:
@@ -286,7 +295,7 @@ def version_reason(key, at, previous, born, events):
         if entry["related"] & EXTINCTION_EVENTS:
             return "admin_fusione"
 
-    return "source_regeneralization"
+    return "source_regeneralization" if geometry_changed else "source_attribute_change"
 
 
 def intervals(calendar, versions):

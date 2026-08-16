@@ -355,7 +355,7 @@ def assemble(calendar, links, creations_by_code, events=None, root=EDITIONS,
     for key, series in versions.items():
         collapsed = intervals(calendar, {at: (v["properties"], v["geometry_digest"])
                                          for at, v in series.items()})
-        previous = None
+        previous, previous_digest = None, None
         for period in collapsed:
             at = period["valid_from"]
             source = series[at]
@@ -364,13 +364,14 @@ def assemble(calendar, links, creations_by_code, events=None, root=EDITIONS,
                 "valid_from": at,
                 "valid_to": period["valid_to"],
                 "version_reason": version_reason(
-                    key, at, previous, creations_by_key, events),
+                    key, at, previous, creations_by_key, events,
+                    geometry_changed=source["geometry_digest"] != previous_digest),
                 "properties": source["properties"],
                 "source_edition": source["source_edition"],
                 "edition_year": source["edition_year"],
                 "com_istat_code": source["com_istat_code"],
             })
-            previous = at
+            previous, previous_digest = at, source["geometry_digest"]
     return out
 
 
