@@ -142,6 +142,28 @@ def _count(path):
     return len(data["features"])
 
 
+def _overlapping(collection):
+    """Whether the snapshot contains a geometry anticipated from a later edition.
+
+    It does at the four dates between a detachment and the next 1 January.
+    Baranzate was constituted on 12 December 2001 and its boundary comes from
+    the 2002 edition, while Bollate, which it was detached from, still carries
+    its undivided 2001 shape: the two overlap, and no ISTAT edition describes
+    that moment consistently.
+
+    This matters because `-clean` resolves overlaps by discarding one of the
+    polygons — silently. It is the same mechanism that drops Miagliano from the
+    current `limits_IT_all.topo.json` (#34). Where the overlap is expected the
+    clean is skipped, so the municipality survives; subtracting the new
+    boundary from its predecessor's would produce a shape ISTAT never published,
+    which D2 forbids.
+    """
+    return any(
+        (feature["properties"].get("source_edition") or "").endswith("(anticipated)")
+        for feature in collection["features"]
+    )
+
+
 def materialize(at, out=RELEASES, root=TEMPORAL, force=False):
     """Write one date's file set, gzipped. Returns the counts per layer."""
     target = Path(out) / at
@@ -157,12 +179,13 @@ def materialize(at, out=RELEASES, root=TEMPORAL, force=False):
     municipalities.write_text(json.dumps(collection, ensure_ascii=False,
                                          separators=(",", ":")))
     expected = len(collection["features"])
+    clean = [] if _overlapping(collection) else ["-clean"]
     del collection
 
     # Provinces and regions, both dissolved from layer 1 — the municipalities —
     # so that regions come from municipalities and not from provinces.
     _mapshaper([
-        "-i", _rel(municipalities), "encoding=utf8", "-clean",
+        "-i", _rel(municipalities), "encoding=utf8", *clean,
         "-rename-layers", "municipalities",
         "-dissolve", "prov_istat_code", "+",
         f"copy-fields={PROVINCE_FIELDS}", "name=provinces",
@@ -188,7 +211,7 @@ def materialize(at, out=RELEASES, root=TEMPORAL, force=False):
     # -clean: re-cleaning after simplification is what drops a municipality
     # from the current limits_IT_all.topo.json (issue #34).
     _mapshaper([
-        "-i", _rel(municipalities), "encoding=utf8", "-clean",
+        "-i", _rel(municipalities), "encoding=utf8", *clean,
         "-simplify", "20%", "weighted",
         "-rename-layers", "municipalities",
         "-dissolve", "prov_istat_code", "+",
