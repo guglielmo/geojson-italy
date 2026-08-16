@@ -139,6 +139,17 @@ across reassignment — so a municipality that still exists carries them at ever
 existed, and **a municipality suppressed before the current vintage has them null**. That
 distinction is a property of the archive, not an omission.
 
+Two consequences worth stating rather than leaving to be discovered:
+
+- **337 entities are extinct** and carry none of the four. Three exceptions are extinct in
+  the archive yet present here: Lirio, Castegnero and Nanto were suppressed *after* the
+  1 January 2026 vintage, so the current file still holds them.
+- **53 municipalities that still exist have no `op_id` in the current vintage either**, and
+  the archive inherits that gap faithfully rather than papering over it. They are the recent
+  mergers — Val di Chy, Valchiusa, Alto Sermenza, Cassano Spinola and the rest — which were
+  created after the openpolis identifiers were last assigned. `opdm_id` is missing for 7 and
+  `minint_elettorale` for 35, so the four fields are not missing together.
+
 ## Geometry
 
 MultiPolygon or Polygon, EPSG:4326 (WGS84), at the source's own resolution. No simplification,
