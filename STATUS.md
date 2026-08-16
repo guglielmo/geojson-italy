@@ -15,12 +15,16 @@ per-issue acceptance checks in `tests/`. The province loop bound is now derived 
 data rather than hardcoded: left at `111`, it would have dropped all of Sardinia without
 producing an error.
 
-**The historical archive now exists.** `temporal/comuni/` holds 8,231 municipalities in
-78,325 versions from 21 October 2001, built from ISTAT alone and tracked in git (D4). Issues
-#24, #25, #26 and #31 are closed; what remains of the milestone is delivery — inverting the
-generation chain (#27), publishing a release per date with `INDEX.csv` (#28), the
-province/region/metropolitan-city layers for any date (#29), the last two validation checks
-(#30) and the consumer documentation (#32).
+**The historical series is published.** `temporal/comuni/` holds 8,231 municipalities in
+78,325 versions from 21 October 2001, built from ISTAT alone and tracked in git (D4), and
+each of the **98 publication dates is a GitHub Release** carrying municipalities, provinces,
+metropolitan cities, regions and the three-layer topojson — so a consumer downloads a file
+instead of running a query. `temporal/INDEX.csv` resolves any date to its release.
+
+Issues #24, #25, #26, #28 and #31 are closed. What remains is inverting the generation chain
+so the current vintage is derived from the archive too (#27), the per-date province and
+metropolitan-city layers at the repository root (#29), the last two validation checks (#30)
+and the consumer documentation (#32).
 
 The repository moved from `openpolis/geojson-italy` to
 [`guglielmo/geojson-italy`](https://github.com/guglielmo/geojson-italy), and the default
@@ -98,9 +102,13 @@ a reuse. Rules and tests in `scripts/identity.py`.
 October 2001 is to be pre-materialised and published as release assets, with an index mapping
 validity intervals to releases. Publishing only 1 January editions would be wrong rather than
 merely coarse: 72 of those 98 dates fall inside the year, so an annual series returns
-plausible, false answers for them. **This half is not built yet** (#28): today a past date is
-reached by filtering `temporal/comuni/reg=NN.geojson` on the validity interval, which is a
-query and therefore the wrong product for the audience D8 describes.
+plausible, false answers for them.
+
+The province counts falling out of the per-date dissolve are an independent check on the
+whole chain, since none of them is written anywhere in the code: 103 provinces in 2005, 107
+in 2006 with the four Sardinian ones, 110 in 2010 with Monza e della Brianza, Fermo and
+Barletta-Andria-Trani, 107 in 2016, 110 in 2026 — and metropolitan cities 0 until 2015, 9
+that year, 14 in 2017 with the Sicilian ones and Reggio Calabria, 15 in 2026 with Sassari.
 
 ### 2. Interoperability with world-geojson (exploratory)
 
