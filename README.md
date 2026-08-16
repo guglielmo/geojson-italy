@@ -76,12 +76,17 @@ GitHub previews GeoJSON only below a size limit and never previews TopoJSON; use
 
 ### Metropolitan cities
 
-Metropolitan cities are second-level units alongside provinces, and they are **inside**
-`limits_IT_provinces` rather than in a layer of their own — Rome is `058`, as it has always
-been here. A separate layer, distinguishing all five ISTAT unit types (Provincia, Provincia
-autonoma, Città metropolitana, Libero consorzio di comuni, Unità non amministrativa), is
-being added with the historical work; it exists already in the temporal dataset as
-`prov_tipo_uts`.
+Metropolitan cities are second-level units alongside provinces. They are **inside**
+`limits_IT_provinces` as they have always been — Rome is `058`, and the file still holds all
+110 units — and they now also have a layer of their own:
+
+| File | Contents |
+| --- | --- |
+| [`geojson/limits_IT_metropolitan_cities.geojson`](geojson/limits_IT_metropolitan_cities.geojson) | the 15 città metropolitane |
+
+`prov_tipo_uts` distinguishes all five ISTAT unit types — Provincia (83), Città metropolitana
+(15), Libero consorzio di comuni (6), Unità non amministrativa (4), Provincia autonoma (2) —
+so any other split can be made with a filter.
 
 Note that ISTAT gives metropolitan cities **two** codes and its own products disagree on
 which to show: the boundary shapefiles use `COD_PROV` 112 for Sassari and 118 for Cagliari,
@@ -103,6 +108,8 @@ the codes list uses `COD_UTS` 312 and 318. This repository has always published 
 | `prov_istat_code` / `prov_istat_code_num` | M, P | province ISTAT code |
 | `prov_acr` | M, P, R | province acronym, e.g. `RM` |
 | `prov_iso_3166_2` | M, P | province [ISO 3166-2](https://en.wikipedia.org/wiki/ISO_3166-2:IT) code, e.g. `IT-RM`, **or `null`** |
+| `prov_uts_code` | M, P | ISTAT's other code family for second-level units: 312 Sassari, 318 Cagliari, against `COD_PROV` 112 and 118 |
+| `prov_tipo_uts` | M, P | Provincia, Provincia autonoma, Città metropolitana, Libero consorzio di comuni, Unità non amministrativa |
 | `reg_name` | M, P, R | region name |
 | `reg_istat_code` / `reg_istat_code_num` | M, P, R | region ISTAT code |
 | `reg_iso_3166_2` | M, P, R | region ISO 3166-2 code, e.g. `IT-62` |
