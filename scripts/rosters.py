@@ -86,7 +86,15 @@ def attributes(record):
     prov = code[:3]
     reg = str(record["COD_REG"]).strip().zfill(2)
     return {
-        "name": record.get("COMUNE_IT") or record.get("COMUNE"),
+        # COMUNE is the bilingual form where there is one — "Bolzano/Bozen" —
+        # and it is what the boundary editions carry and what this repository
+        # has always published. COMUNE_IT is the Italian half alone, so
+        # preferring it silently renames 124 municipalities, which for a
+        # consumer joining on the name is a break rather than an improvement.
+        # Both are kept: the parts are useful and cost nothing.
+        "name": record.get("COMUNE") or record.get("COMUNE_IT"),
+        "name_it": record.get("COMUNE_IT"),
+        "name_other": record.get("COMUNE_A"),
         "com_istat_code": code,
         "com_istat_code_num": int(code),
         "com_catasto_code": record.get("COD_CATASTO"),

@@ -33,6 +33,7 @@ Usage:
     python -m scripts.materialize index                 # write temporal/INDEX.csv
     python -m scripts.materialize date 2005-01-01 ...   # one or more dates
     python -m scripts.materialize all [--limit N]       # every date, resumable
+    python -m scripts.materialize root [DATE]           # comuni.geojson itself
 """
 
 import csv
@@ -45,6 +46,7 @@ from collections import Counter
 from pathlib import Path
 
 from scripts.change_dates import change_dates, load_variations
+from scripts.iso_3166_2 import province_iso_code, region_iso_code
 
 ROOT = Path(__file__).resolve().parent.parent
 TEMPORAL = ROOT / "temporal" / "comuni"
@@ -93,6 +95,27 @@ def resolve(wanted, calendar):
     return max(covering)
 
 
+def with_iso_codes(props):
+    """Add the ISO 3166-2 codes, which the archive deliberately does not store.
+
+    They are not ISTAT's: they are this project's lookup against a standard that
+    changes — ISO deleted four Sardinian codes in 2019 and restored four
+    Friulian ones in 2020. Frozen into the archive they would go stale silently
+    and could only be corrected by rewriting 359 MB; derived at materialisation
+    they always reflect the current table, and the archive keeps to what ISTAT
+    published.
+
+    Applied to a past date this is today's standard read against that date's
+    units, so a unit ISO no longer lists comes out null — a gap, never a wrong
+    code. `scripts/iso_3166_2.py` documents each one.
+    """
+    return {
+        **props,
+        "prov_iso_3166_2": province_iso_code(props.get("prov_acr")),
+        "reg_iso_3166_2": region_iso_code(props["reg_istat_code"]),
+    }
+
+
 def snapshot(at, root=TEMPORAL):
     """The municipalities valid on a date, as a FeatureCollection.
 
@@ -106,7 +129,7 @@ def snapshot(at, root=TEMPORAL):
             props = feature["properties"]
             if props["valid_from"] <= at and (props["valid_to"] is None
                                               or props["valid_to"] > at):
-                features.append(feature)
+                features.append({**feature, "properties": with_iso_codes(props)})
         del data
     features.sort(key=lambda f: f["properties"]["com_istat_code"])
     return {"type": "FeatureCollection", "features": features}
@@ -243,6 +266,59 @@ def materialize(at, out=RELEASES, root=TEMPORAL, force=False):
     return counts
 
 
+# The property order of the published comuni.geojson, kept exactly (D6): third
+# parties parse this file positionally more often than anyone admits, and a
+# reordering is a diff on 7,896 features that says nothing.
+ROOT_PROPERTIES = (
+    "name", "op_id", "minint_elettorale", "minint_finloc",
+    "prov_name", "prov_istat_code", "prov_istat_code_num", "prov_acr",
+    "prov_iso_3166_2", "reg_name", "reg_istat_code", "reg_istat_code_num",
+    "reg_iso_3166_2", "opdm_id", "com_catasto_code", "com_istat_code",
+    "com_istat_code_num",
+)
+
+# Appended, never inserted: additive is safe, reordering is not. These are the
+# two new fields of the design's §5 that the current file does not carry.
+ROOT_ADDITIONS = ("prov_uts_code", "prov_tipo_uts")
+
+COMUNI = ROOT / "comuni.geojson"
+CRS = {"type": "name", "properties": {"name": "EPSG:4326"}}
+
+
+def root_collection(at, root=TEMPORAL):
+    """`comuni.geojson` for a date: the archive's first derived product.
+
+    The inversion this milestone turns on. Until now this file *was* the source
+    and the 134 published files descended from it; now it descends from
+    `temporal/`, and the two generation scripts continue unchanged downstream.
+
+    That is also the structural cure for the class of defect release 2026.1
+    found: a hardcoded province bound cannot silently drop Sardinia when the
+    range comes from the data, and a municipality cannot go missing from the
+    current vintage while being present in the archive it is built from.
+    """
+    features = []
+    for feature in snapshot(at, root=root)["features"]:
+        props = feature["properties"]
+        ordered = {key: props.get(key) for key in ROOT_PROPERTIES}
+        ordered.update({key: props.get(key) for key in ROOT_ADDITIONS})
+        features.append({"type": "Feature", "properties": ordered,
+                         "geometry": feature["geometry"]})
+    return {"type": "FeatureCollection", "crs": CRS, "features": features}
+
+
+def write_root(at, path=COMUNI, root=TEMPORAL):
+    """Write comuni.geojson exactly as build_comuni.py wrote it.
+
+    Same serialisation — ASCII-escaped, default separators — so that the only
+    difference against the published file is the added properties, and a diff
+    is readable rather than a rewrite of 35 MB.
+    """
+    collection = root_collection(at, root=root)
+    Path(path).write_text(json.dumps(collection, ensure_ascii=True))
+    return len(collection["features"])
+
+
 def index_rows(calendar, root=TEMPORAL):
     """One row per validity interval: which release serves which dates.
 
@@ -319,6 +395,13 @@ def main(argv):
     command = argv[0] if argv else "index"
     rest = argv[1:]
     calendar = change_dates(load_variations())
+
+    if command == "root":
+        at = resolve(rest[0], calendar) if rest else max(
+            at for at in calendar if at.endswith("-01-01"))
+        n = write_root(at)
+        print(f"comuni.geojson: {n} municipalities as of {at}")
+        return
 
     if command == "index":
         path = write_index(index_rows(calendar))

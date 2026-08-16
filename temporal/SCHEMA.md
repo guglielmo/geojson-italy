@@ -116,7 +116,9 @@ Every attribute is as ISTAT published it **for that date**, from the roster (SIT
 
 | Field | Notes |
 | --- | --- |
-| `name` | Italian name; bilingual municipalities carry ISTAT's own form. |
+| `name` | The form ISTAT publishes, bilingual where there is one: `Bolzano/Bozen`. This is what the boundary editions carry and what this repository has always published, on 124 municipalities. |
+| `name_it` | The Italian half alone: `Bolzano`. |
+| `name_other` | The other language's half: `Bozen`. Null for the rest. |
 | `com_istat_code`, `com_istat_code_num` | Zero-padded string and integer. |
 | `com_catasto_code` | Cadastral code **at that date** — see `terr_key` above. |
 | `prov_istat_code`, `prov_istat_code_num` | The `COD_PROV` family: Rome is `058`, not `258`. |
@@ -125,6 +127,19 @@ Every attribute is as ISTAT published it **for that date**, from the roster (SIT
 | `prov_tipo_uts` | Provincia, Provincia autonoma, Città metropolitana, Libero consorzio di comuni, Unità non amministrativa. |
 | `reg_istat_code`, `reg_istat_code_num`, `reg_name` | |
 | `com_nuts3` | NUTS 3 code, absent before 2006 and stated in the vintage current at the date. |
+
+### What the archive deliberately does not store
+
+**The ISO 3166-2 codes.** `prov_iso_3166_2` and `reg_iso_3166_2` are not ISTAT's: they are
+this project's lookup against a standard that changes — ISO deleted four Sardinian codes in
+2019 and restored four Friulian ones in 2020. Frozen into the archive they would go stale
+silently and could only be corrected by rewriting 359 MB; derived when a file set is
+materialised they always reflect the current table, and the archive keeps to what ISTAT
+published. Every published file carries them; only the archive does not.
+
+Read against a past date, that is today's standard applied to that date's units, so a unit
+ISO no longer lists comes out null — a gap, never a wrong code. `scripts/iso_3166_2.py`
+documents each one.
 
 ### Identifiers that are not ISTAT's
 

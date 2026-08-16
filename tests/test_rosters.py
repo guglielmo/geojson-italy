@@ -44,6 +44,20 @@ def test_a_numeric_code_keeps_its_leading_zeros():
     assert istat_code(" 001001 ") == "001001"
 
 
+def test_a_bilingual_municipality_keeps_the_form_istat_publishes():
+    """Bolzano/Bozen, not Bolzano.
+
+    The boundary editions and this repository both carry the bilingual form,
+    on 124 municipalities. Taking the Italian half instead renames them all,
+    which for a consumer joining on the name is a break, not a tidy-up.
+    """
+    props = attributes({**AGLIE, "COMUNE": "Bolzano/Bozen",
+                        "COMUNE_IT": "Bolzano", "COMUNE_A": "Bozen"})
+    assert props["name"] == "Bolzano/Bozen"
+    assert props["name_it"] == "Bolzano"
+    assert props["name_other"] == "Bozen"
+
+
 def test_attributes_use_the_published_property_names():
     props = attributes(AGLIE)
     assert props["name"] == "Agliè"
@@ -86,6 +100,7 @@ def test_nuts_is_matched_by_prefix_across_vintages():
 def test_reading_a_roster_keys_on_the_istat_code(tmp_path):
     (tmp_path / "2026-01-01.json").write_text(
         json.dumps({"resultset": [AGLIE, {**AGLIE, "PRO_COM_T": 1002,
+                                          "COMUNE": "Airasca",
                                           "COMUNE_IT": "Airasca",
                                           "COD_CATASTO": "A109"}]})
     )

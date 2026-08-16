@@ -15,6 +15,13 @@ PUBLISHED_KEY_ORDER = [
     "prov_iso_3166_2",
     "reg_name", "reg_istat_code", "reg_istat_code_num", "reg_iso_3166_2",
     "opdm_id", "com_catasto_code", "com_istat_code", "com_istat_code_num",
+    # Added when the generation chain was inverted and comuni.geojson became a
+    # product of the temporal archive. Appended, never inserted: additive is
+    # safe for consumers, reordering is not. prov_uts_code carries ISTAT's
+    # other code family for metropolitan cities — 312 Sassari against COD_PROV
+    # 112 — and prov_tipo_uts is what makes the metropolitan-city layer
+    # possible at all.
+    "prov_uts_code", "prov_tipo_uts",
 ]
 
 
