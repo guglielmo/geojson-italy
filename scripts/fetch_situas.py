@@ -237,7 +237,7 @@ def fetch_rosters(dates, force=False, limit=None):
             fetched += 1
         url = roster_url(iso)
         records = download(url, dest, force=force)
-        manifest[f"rosters/{dest.name}"] = {
+        entry = {
             "pfun": 61,
             "date": iso,
             "url": url,
@@ -245,6 +245,14 @@ def fetch_rosters(dates, force=False, limit=None):
             "records": records,
             "bytes": dest.stat().st_size,
         }
+        # A cached file may have been adopted from elsewhere rather than
+        # fetched. Dropping that note would leave the manifest claiming an
+        # ISTAT response whose checksum is of a local copy — a provenance
+        # record that quietly stops being true.
+        previous = manifest.get(f"rosters/{dest.name}", {})
+        if "seeded_from" in previous and not force:
+            entry["seeded_from"] = previous["seeded_from"]
+        manifest[f"rosters/{dest.name}"] = entry
         print(f"{iso}  {records:>5} comuni  {dest.stat().st_size / 1048576:5.1f} MB")
         _save_manifest(manifest)
     return manifest

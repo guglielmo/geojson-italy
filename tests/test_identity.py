@@ -9,6 +9,8 @@ import pytest
 
 from scripts.identity import (
     AmbiguousIdentity,
+    creation_at,
+    creations,
     first_code,
     identity_links,
     intervals,
@@ -80,6 +82,60 @@ def test_a_cycle_raises_rather_than_looping():
 def test_two_predecessors_for_one_code_raise():
     with pytest.raises(AmbiguousIdentity):
         first_code("C", {"A": "C", "B": "C"})
+
+
+def event(code, this, related, at):
+    return {
+        "DESC_COD_VARIAZIONE": f"{code}-Descrizione",
+        "COD_CATASTO": this,
+        "COD_CATASTO_REL": related,
+        "DATA_INIZIO_AMMINISTRATIVA": f"{at}T00:00:00Z",
+    }
+
+
+def test_a_merger_is_read_from_its_predecessors_extinction():
+    """Castegnero and Nanto are extinguished into Castegnero Nanto, so the new
+    boundary is their union."""
+    records = [
+        event("CS", "M439", "C056", "2026-02-21"),
+        event("CS", "M439", "F838", "2026-02-21"),
+        event("ES", "C056", "M439", "2026-02-21"),
+        event("ES", "F838", "M439", "2026-02-21"),
+    ]
+    assert creations(records)["M439"] == [
+        {"date": "2026-02-21", "kind": "merger", "predecessors": ["C056", "F838"]}
+    ]
+
+
+def test_a_detachment_is_read_from_its_predecessor_surviving():
+    """Trapani cedes territory and continues to exist, so Misiliscemi's
+    boundary cannot be derived from it."""
+    records = [
+        event("CS", "M432", "L331", "2021-02-20"),
+        event("CECS", "L331", "M432", "2021-02-20"),
+    ]
+    assert creations(records)["M432"][0]["kind"] == "detachment"
+
+
+def test_a_constitution_with_no_matching_predecessor_event_raises():
+    with pytest.raises(AmbiguousIdentity):
+        creations([event("CS", "M999", "A001", "2020-01-01")])
+
+
+def test_a_municipality_constituted_twice_keeps_both_creations():
+    """Baranzate: created 2001, extinguished 2003 by the Constitutional Court,
+    created again 2004. One entry would date its second life from its first."""
+    records = [
+        event("CS", "A618", "A940", "2001-12-12"),
+        event("CECS", "A940", "A618", "2001-12-12"),
+        event("CS", "A618", "A940", "2004-06-08"),
+        event("CECS", "A940", "A618", "2004-06-08"),
+    ]
+    born = creations(records)
+    assert [c["date"] for c in born["A618"]] == ["2001-12-12", "2004-06-08"]
+    assert creation_at(born, "A618", "2003-01-01")["date"] == "2001-12-12"
+    assert creation_at(born, "A618", "2005-01-01")["date"] == "2004-06-08"
+    assert creation_at(born, "A618", "2001-01-01") is None
 
 
 CALENDAR = ["2001-10-21", "2002-01-01", "2003-01-01", "2004-01-01", "2005-01-01"]

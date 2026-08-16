@@ -38,6 +38,14 @@ is not recoverable from the data, and choosing one fabricates a history.
 IDENTITY_EVENTS = {"CD", "RN"}
 
 
+# How a municipality comes into existence, as the variation reports describe it.
+# A constitution (`CS`) names the entities it came from; what those entities did
+# on the same date says which kind it is, and the two kinds need different
+# geometry.
+EXTINCTION_EVENTS = {"ES", "AQES"}       # the predecessor ends: a merger
+CESSION_EVENTS = {"CECS"}                # the predecessor survives: a detachment
+
+
 class AmbiguousIdentity(ValueError):
     """Two irreconcilable readings of who an entity is.
 
@@ -105,6 +113,73 @@ def first_code(code, links):
 def terr_key(code, links):
     """The archive's public key for the entity holding `code` at some date."""
     return first_code(code, links)
+
+
+def _variation(record):
+    described = record.get("DESC_COD_VARIAZIONE") or record.get("COD_VARIAZIONE") or ""
+    return str(described).split("-", 1)[0].strip()
+
+
+def creations(records):
+    """How each municipality created since 1991 came into existence.
+
+    Returns {cadastral code: [{"date", "kind", "predecessors"}, ...]}, in date
+    order, with `kind` one of `merger` or `detachment`. A list rather than a
+    single entry because a municipality can be constituted twice: Baranzate was
+    created in 2001, extinguished in 2003 when the Constitutional Court struck
+    down the regional law behind it, and created again in 2004. Keeping only one
+    creation would date its second life from its first.
+
+    The distinction between the two kinds is what decides a municipality's
+    geometry before ISTAT first publishes one, and the reports state it rather
+    than leaving it to be inferred:
+
+        ES / AQES  the predecessor is extinguished — Castegnero and Nanto
+                   become Castegnero Nanto, so the new boundary is their union
+        CECS       the predecessor cedes territory and survives — Trapani cedes
+                   Misiliscemi, so the new boundary cannot be derived from it
+
+    A constitution whose predecessors do neither, or do both, raises. Guessing
+    would put a fabricated boundary in a public archive under ISTAT's name,
+    which is the one thing this design refuses everywhere.
+    """
+    constituted, behaviour = {}, {}
+    for record in records:
+        code = _variation(record)
+        this, related = _code(record, "COD_CATASTO"), _code(record, "COD_CATASTO_REL")
+        at = str(record.get("DATA_INIZIO_AMMINISTRATIVA") or "")[:10]
+        if not this or not related:
+            continue
+        if code == "CS":
+            predecessors = constituted.setdefault((this, at), [])
+            if related not in predecessors:
+                predecessors.append(related)
+        elif code in EXTINCTION_EVENTS or code in CESSION_EVENTS:
+            behaviour.setdefault((related, at), set()).add(
+                "merger" if code in EXTINCTION_EVENTS else "detachment"
+            )
+
+    out = {}
+    for (code, at), predecessors in sorted(constituted.items()):
+        kinds = behaviour.get((code, at), set())
+        if len(kinds) != 1:
+            raise AmbiguousIdentity(
+                f"{code} constituted {at} from {sorted(predecessors)}: "
+                f"predecessors are recorded as "
+                f"{sorted(kinds) or 'neither extinguished nor ceding'}"
+            )
+        out.setdefault(code, []).append({
+            "date": at,
+            "kind": kinds.pop(),
+            "predecessors": sorted(predecessors),
+        })
+    return out
+
+
+def creation_at(creations_by_code, code, at):
+    """The most recent creation of `code` on or before `at`, if any."""
+    candidates = [c for c in creations_by_code.get(code, []) if c["date"] <= at]
+    return candidates[-1] if candidates else None
 
 
 def intervals(calendar, versions):
