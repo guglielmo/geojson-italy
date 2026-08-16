@@ -29,6 +29,9 @@ from collections import defaultdict
 from pathlib import Path
 
 from scripts.change_dates import change_dates, load_variations
+from scripts.istat_editions import SERIES_YEARS, edition_filename, edition_reference_date
+from scripts.materialize import snapshot
+from scripts.build_temporal import read_edition_geometries
 from scripts.rosters import read_roster
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -119,6 +122,80 @@ def sardinian_continuity(grouped, before="2025-12-31", after="2026-01-01"):
     return continuous, broken
 
 
+def round_trip_problems(years=SERIES_YEARS):
+    """Check 1: the geometry at an edition's date is that edition's geometry.
+
+    `source_edition` claims each boundary was read from a named ISTAT file, and
+    this is what gives the claim meaning: at the reference date of every
+    edition, each municipality's geometry must be **exactly** the one in that
+    file — compared coordinate for coordinate, not by area or bounding box,
+    because an area comparison passes on a shape that has been quietly
+    resampled.
+
+    The municipalities ISTAT had not yet drawn are exempt and must say so:
+    their `source_edition` carries `(union of predecessors)` or `(anticipated)`.
+    An exemption that does not declare itself is a failure — that is exactly how
+    a derived boundary would pass for a published one.
+
+    Slow on purpose: it reads all 26 editions and the whole archive once per
+    edition, because the cheap version of this check is the one that proves
+    nothing.
+    """
+    problems = []
+    for year in years:
+        at = edition_reference_date(year)
+        published = read_edition_geometries(year)
+        edition = edition_filename(year)
+        derived = 0
+        for feature in snapshot(at)["features"]:
+            props = feature["properties"]
+            source = props.get("source_edition") or ""
+            if "(" in source:
+                derived += 1
+                continue
+            if source != edition:
+                problems.append(
+                    f"{at}: {props['com_istat_code']} claims {source}, "
+                    f"the applicable edition is {edition}")
+                continue
+            theirs = published.get(props["com_istat_code"])
+            if theirs is None:
+                problems.append(
+                    f"{at}: {props['com_istat_code']} is not in {edition}")
+            elif theirs != feature["geometry"]:
+                problems.append(
+                    f"{at}: {props['com_istat_code']} differs from {edition}")
+        print(f"  {at}  {edition}  {derived} derived boundaries declared")
+    return problems
+
+
+def derivation_problems(grouped, calendar):
+    """Check 4: dissolving the archive reproduces ISTAT's own unit counts.
+
+    Province and region layers are not stored, they are dissolved from the
+    municipalities, so what has to hold is that the number of distinct units
+    the archive yields at a date equals the number ISTAT's roster lists for the
+    same date. The roster counts them under `COD_UTS` and the archive under
+    `COD_PROV`, which are two code families for the same units — comparing the
+    counts is what proves they are.
+    """
+    problems = []
+    for at in calendar:
+        versions = valid_at(grouped, at).values()
+        provinces = {v["prov_istat_code"] for v in versions}
+        regions = {v["reg_istat_code"] for v in versions}
+        roster = read_roster(at).values()
+        published_provinces = {str(r["prov_uts_code"]) for r in roster}
+        published_regions = {str(r["reg_istat_code"]) for r in roster}
+        if len(provinces) != len(published_provinces):
+            problems.append(f"{at}: {len(provinces)} provinces dissolved, "
+                            f"roster lists {len(published_provinces)}")
+        if len(regions) != len(published_regions):
+            problems.append(f"{at}: {len(regions)} regions dissolved, "
+                            f"roster lists {len(published_regions)}")
+    return problems
+
+
 def main():
     variations = load_variations()
     calendar = change_dates(variations)
@@ -144,6 +221,17 @@ def main():
           f"changed ISTAT code, {len(broken)} lost")
     if continuous != 377 or broken:
         failures += 1
+
+    problems = derivation_problems(grouped, calendar)
+    print(f"provinces and regions dissolved: "
+          f"{'ok, all ' + str(len(calendar)) + ' dates' if not problems else problems[:5]}")
+    failures += len(problems)
+
+    if "--quick" not in sys.argv:
+        print("round trip against the ISTAT editions:")
+        problems = round_trip_problems()
+        print(f"  {'ok, all 26 editions' if not problems else problems[:5]}")
+        failures += len(problems)
 
     return 1 if failures else 0
 
