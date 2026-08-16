@@ -178,6 +178,27 @@ The index resolves it to `2021-06-17`.
 Per-region and per-province subsets (`limits_R_*`, `limits_P_*`) are produced for the current
 vintage only.
 
+#### Three things to know before using a past date
+
+**ISTAT draws boundaries once a year, on 1 January.** Codes, names and provincial assignment
+are exact for the date you asked for — those change on the day the act says. Boundaries are
+the ones ISTAT last published, so at a date inside the year they come from that year's
+1 January edition. A change of code or of province, which is the common case, moves no
+boundary and is represented exactly; a boundary moved by a transfer of territory appears at
+the following edition.
+
+**Do not read a diff between two dates as administrative change.** ISTAT re-generalises its
+geometries in some editions and not others — 2002, 2010, 2011, 2012, 2019, 2022 and 2025 — so
+comparing two adjacent years shows roughly 7,900 changed boundaries and means nothing
+happened. Every feature carries `version_reason`: `source_regeneralization` is ISTAT redrawing
+its own lines, and the `admin_*` values are the real events. Filter on it.
+
+**A municipality ISTAT had not yet drawn says so** in `source_edition`:
+`(union of predecessors)` where a merger's boundary is its predecessors' dissolved together,
+`(anticipated)` where a detached municipality's boundary is taken from the next edition that
+carries it. 39 municipalities across 42 dates are in this position; the rest carry a boundary
+read from a named ISTAT file, which is what makes the fidelity claim checkable.
+
 ### The archive behind them
 
 The historical archive lives in [`temporal/`](temporal/), holds **8,231 municipalities in
@@ -205,17 +226,13 @@ queryable. It is rejected anyway: verifying this archive should require mapshape
 this project's only dependency, not a database engine. Split by region so a change touching
 one region rewrites one file.
 
-Read [`temporal/SCHEMA.md`](temporal/SCHEMA.md) before using it. Three things are not
-self-evident:
+Read [`temporal/SCHEMA.md`](temporal/SCHEMA.md) before using it. Two things beyond the
+caveats above are not self-evident:
 
 - **The key is `terr_key`, the municipality's first cadastral code — never the ISTAT code.**
   The ISTAT code embeds the province, so it changes on reassignment; the 2026 Sardinian
   reform changed 377 of them with zero overlap. Measured across the series, exactly one
   municipality ever changed its own cadastral code and no code was ever reused.
-- **`version_reason` separates administrative change from ISTAT redrawing its own lines.**
-  ISTAT re-generalises its geometry in some editions and not others — 2002, 2010, 2011,
-  2012, 2019, 2022, 2025 — so a naive diff of two adjacent years shows ~7,900 changed
-  boundaries and suggests something historic happened. Filter on this field instead.
 - **Gaps are meaningful.** Baranzate was constituted in 2001, abolished in 2003 when the
   Constitutional Court struck down the regional law behind it, and constituted again in
   2004. Its intervals have a hole, on purpose.

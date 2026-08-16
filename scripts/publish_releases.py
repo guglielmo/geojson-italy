@@ -73,10 +73,32 @@ which maps every validity interval to its release.
 This release is the one to use for any date from {row['valid_from']} up to (but not
 including) {valid_to}.
 
+### Three things to know before using these files
+
+**ISTAT draws boundaries once a year, on 1 January.** Codes, names, provincial and regional
+assignment are exact for {row['valid_from']} — those change on the day the act says. Boundaries
+are the ones ISTAT last published, so at a date inside the year they come from that year's
+1 January edition. A change of code or of province, which is the common case, moves no
+boundary and is represented exactly; a boundary moved by a transfer of territory appears at
+the following edition.
+
+**Do not read a diff between two dates as administrative change.** ISTAT re-generalises its
+geometries in some editions and not others — 2002, 2010, 2011, 2012, 2019, 2022 and 2025 —
+so comparing two adjacent years shows roughly 7,900 changed boundaries and means nothing
+happened. Every feature carries `version_reason`: `source_regeneralization` is ISTAT
+redrawing its own lines, and the `admin_*` values are the real events. Filter on it.
+
+**Municipalities that ISTAT had not yet drawn** carry it in `source_edition`:
+`(union of predecessors)` where a merger's boundary is its predecessors' dissolved together,
+`(anticipated)` where a detached municipality's boundary is taken from the next edition that
+carries it. Both are stated rather than smoothed over.
+
 ### Provenance
 
-Derived from ISTAT's published boundary editions and territorial reports; each feature
-carries `source_edition`, naming the ISTAT file its geometry came from. Schema in
+Faithful to what ISTAT published for this date: not smoothed, not normalised, not reconciled
+across editions. Each feature carries `source_edition`, naming the ISTAT file its geometry
+was read from, so the claim can be checked by downloading that file. Every field is
+documented in
 [`temporal/SCHEMA.md`](https://github.com/guglielmo/geojson-italy/blob/main/temporal/SCHEMA.md).
 
 Data are ISTAT-derived and redistributed under CC-BY.
@@ -112,9 +134,12 @@ def publish(row, dry_run=True, root=RELEASES, replace=False):
     tag = row["release_tag"]
     paths = assets_for(tag, root=root)
     if replace:
-        command = ["gh", "release", "upload", tag,
-                   *[str(p) for p in paths], "--clobber"]
-        verb = "would replace the assets of"
+        # The notes go up again too. They are the only documentation most
+        # consumers read — they arrive from a search engine with a date in
+        # hand — so leaving a corrected file set under stale caveats would
+        # keep the worst half of the mistake.
+        command = ["gh", "release", "edit", tag, "--notes", notes(row)]
+        verb = "would replace the assets and notes of"
     else:
         command = [
             "gh", "release", "create", tag,
@@ -129,6 +154,12 @@ def publish(row, dry_run=True, root=RELEASES, replace=False):
               f"{total / 1048576:5.1f} MB  ({row['change']})")
         return None
     subprocess.run(command, check=True, cwd=ROOT, capture_output=True, text=True)
+    if replace:
+        subprocess.run(
+            ["gh", "release", "upload", tag,
+             *[str(p) for p in paths], "--clobber"],
+            check=True, cwd=ROOT, capture_output=True, text=True,
+        )
     print(f"{'replaced' if replace else 'published'} {tag}")
     return tag
 

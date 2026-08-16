@@ -38,6 +38,28 @@ def test_the_body_warns_that_a_year_is_not_a_date():
     assert "INDEX.csv" in body
 
 
+def test_the_body_carries_the_caveats_where_they_are_met():
+    """The release notes are the only documentation most consumers read.
+
+    Three things silently produce wrong conclusions if unstated: boundaries
+    are drawn once a year while codes change on the day; a diff between two
+    dates is mostly ISTAT re-generalising; and a municipality ISTAT had not
+    yet drawn carries a derived boundary that says so.
+    """
+    body = notes(ROW)
+    assert "once a year" in body
+    assert "version_reason" in body
+    assert "source_regeneralization" in body
+    assert "(union of predecessors)" in body
+    assert "(anticipated)" in body
+
+
+def test_the_body_states_what_the_files_are_faithful_to():
+    body = notes(ROW)
+    assert "not smoothed, not normalised, not reconciled" in body
+    assert "source_edition" in body
+
+
 def test_the_body_keeps_the_attribution():
     assert "CC-BY" in notes(ROW)
     assert "ISTAT" in notes(ROW)
