@@ -21,10 +21,11 @@ each of the **98 publication dates is a GitHub Release** carrying municipalities
 metropolitan cities, regions and the three-layer topojson — so a consumer downloads a file
 instead of running a query. `temporal/INDEX.csv` resolves any date to its release.
 
-Issues #24, #25, #26, #28 and #31 are closed. What remains is inverting the generation chain
-so the current vintage is derived from the archive too (#27), the per-date province and
-metropolitan-city layers at the repository root (#29), the last two validation checks (#30)
-and the consumer documentation (#32).
+**The milestone is complete**: all nine issues are closed, and #34 with them. The generation
+chain is inverted — `comuni.geojson` is now the archive's first derived product, verified
+identical to the published file bar two added properties — the metropolitan-city layer exists
+at the root and at every date, and all five fidelity checks pass, including the round trip
+that verifies 78,289 versions vertex for vertex against the ISTAT file each one names.
 
 The repository moved from `openpolis/geojson-italy` to
 [`guglielmo/geojson-italy`](https://github.com/guglielmo/geojson-italy), and the default
