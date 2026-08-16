@@ -1,18 +1,19 @@
-# Introduction
+# geojson-italy
 
-This repository contains geo-referenced limits for all municipalities in Italy,
-and their breakdown by regions and provinces.
+Administrative boundaries of Italy — regions, provinces and municipalities — as
+[GeoJSON](https://geojson.org/) and [TopoJSON](https://github.com/topojson/topojson), in
+WGS84 (EPSG:4326).
 
-The [geographic projection](https://github.com/d3/d3-geo) used is WGS84.
+The repository answers two questions:
 
-The limits are released both in [topojson](https://github.com/topojson/topojson) with a high simplification rate (20%),
-and the non-simplified [geojson](https://geojson.org/) format.
+1. **What are Italy's administrative boundaries now?** Download a file. No build step, no
+   interpreter, no dependency on this project's tooling.
+2. **What were they on a given date?** The same boundaries as ISTAT published them for that
+   date, back to **21 October 2001** — including the changes that took effect inside the
+   year, which an annual series cannot represent.
 
-As administrative limits change continuously, the files are upgraded periodically, and refer to the **latest** administrative subdivisions, as published by [ISTAT](https://www.istat.it/) in [this permalink](https://www.istat.it/it/archivio/222527) (hoping it's actually a **permalink**).
-
-Historical versions, year by year, are published as tags, currently only 2019 and 2021 are present.
-
-The main branch currently contains limits as of 1 January 2026.
+Everything here is derived from [ISTAT](https://www.istat.it/) and redistributed under
+CC-BY. Every figure in this file is measured, not estimated.
 
 > **Breaking change in release 2026.1.** The Sardinian reform effective 1 January 2026
 > renumbered every Sardinian province — codes 90, 91, 92, 95 and 111 are vacant, the new
@@ -20,113 +21,244 @@ The main branch currently contains limits as of 1 January 2026.
 > with no overlap against the previous release. Join on `com_catasto_code`, which is stable
 > across the reform. See the [CHANGELOG](CHANGELOG.md) before upgrading.
 
-# Canonical home
+---
 
-This repository lives at
-[`guglielmo/geojson-italy`](https://github.com/guglielmo/geojson-italy).
-It was previously hosted at `openpolis/geojson-italy`; old links redirect here.
+## 1. Current boundaries
 
-The default branch was renamed from `master` to `main` in August 2026. GitHub redirects
-the old branch name, including on `raw.githubusercontent.com`, so existing pinned URLs
-keep working — but that redirect is a convenience, not a guarantee. Please update any
-pinned raw/CDN URLs to the current owner and branch:
+The files at the root of this repository are the **1 January 2026** ISTAT vintage. Pin them
+directly:
 
 ```
 https://raw.githubusercontent.com/guglielmo/geojson-italy/main/<path>
 ```
 
+### GeoJSON — unsimplified
 
-# Attribution
-The original administrative limits data are copyrighted by ISTAT, that releases them under the CC-BY license.
-The data generated and published here are released under the same CC-BY license.
+Full vertex count, one layer per file, compatible with almost every visualiser and library.
 
-# Geojson files
-These files are **not simplified**, contain a large number of vectors, and can only contain one layer.
-They are compatible with almost all visualisers and applications, and can be used to integrate geographic information,
-almost as ubiquitously as shp files.
+| File | Contents |
+| --- | --- |
+| [`geojson/limits_IT_municipalities.geojson`](geojson/limits_IT_municipalities.geojson) | all 7,896 municipalities, ~40 MB |
+| [`geojson/limits_IT_provinces.geojson`](geojson/limits_IT_provinces.geojson) | all 110 provinces and metropolitan cities |
+| [`geojson/limits_IT_regions.geojson`](geojson/limits_IT_regions.geojson) | all 20 regions |
+| `geojson/limits_R_{code}_municipalities.geojson` | municipalities of one region — e.g. [`R_12`](geojson/limits_R_12_municipalities.geojson), Lazio |
+| `geojson/limits_P_{code}_municipalities.geojson` | municipalities of one province — e.g. [`P_58`](geojson/limits_P_58_municipalities.geojson), Rome |
 
-As of June 2023 (tag 2023.1), the geojson files are produced using the `gj2008` flag of mapshaper, in order to make them compatile with the pre-RFC 7946 GeoJSON spec, and with the D3 javascript library, and other libraries using D3 underneath, as Plotly, for example.
-You can find the original discussion in [this mapshaper's issue](https://github.com/mbloch/mapshaper/issues/432#issuecomment-675775465).
+`{code}` is the ISTAT numeric code **without zero padding**, while the `prov_istat_code` and
+`reg_istat_code` *properties* are zero-padded strings. Both forms exist on purpose;
+`*_istat_code_num` is the integer.
 
-The following files are available:
-- [geojson/limits_IT_municipalities.geojson](https://github.com/guglielmo/geojson-italy/blob/main/geojson/limits_IT_municipalities.geojson) - all Italian municipalities, ~40MB
-- [geojson/limits_IT_provinces.geojson](https://github.com/guglielmo/geojson-italy/blob/main/geojson/limits_IT_provinces.geojson) - all Italian provinces
-- [geojson/limits_IT_regions.geojson](https://github.com/guglielmo/geojson-italy/blob/main/geojson/limits_IT_regions.geojson) - all Italian regions
-- geojson/limits_R_{code}_municipalities.geojson - all municipalities in a region (R is the ISTAT numerical code of the region, ex: [geojson/limits_R_12_municipalities.geojson](https://github.com/guglielmo/geojson-italy/blob/main/geojson/limits_R_12_municipalities.geojson) - Lazio region)
-- geojson/limits_P_{code}_municipalities.geojson - all munitipalities in a province (P is the ISTAT numerical code of the province, ex: [geojson/limits_P_58_municipalities.geojson](https://github.com/guglielmo/geojson-italy/blob/main/geojson/limits_P_58_municipalities.geojson) - Rome province)
+A file is emitted for every code in range even where no province survives, so a vacant code
+returns an empty `GeometryCollection` rather than a 404 — the URL stays stable.
 
-Please consider that maps preview for geojson data are only available for files of limited size in github.com; use [mapshaper](https://mapshaper.org) to see and explore larger files.
+Since release 2023.1 the GeoJSON files are written with mapshaper's `gj2008` flag, which
+emits pre-RFC 7946 GeoJSON (winding order and the `crs` member). This is what keeps them
+working with D3 and everything built on it, Plotly included — see
+[mapshaper#432](https://github.com/mbloch/mapshaper/issues/432#issuecomment-675775465).
 
+### TopoJSON — simplified to 20%
 
-# Topojson files
-These files are **simplified**, **smaller**, but **less precise**, and contains **a lot less vectors** than the corresponding `geojson` files, can contain **many layers**, and can be used in compatible map visualisers ([leaflet](https://webkid.io/blog/maps-with-leaflet-and-topojson/), [d3](https://bl.ocks.org/almccon/410b4eb5cad61402c354afba67a878b8), mapshaper).
+Smaller, less precise, and able to carry several layers in one file. Shared borders stay
+topologically coincident across the three levels, because provinces and regions are
+dissolved from the *already simplified* municipalities.
 
-The following `topojson` files are available:
-- [topojson/limits_IT_all.topo.json](https://github.com/guglielmo/geojson-italy/blob/main/topojson/limits_IT_all.topo.json) - all municipalities, provinces and regions (3 layers), ~4MB
-- [topojson/limits_IT_municipalities.topo.json](https://github.com/guglielmo/geojson-italy/blob/main/topojson/limits_IT_municipalities.topo.json) - all Italian municipalities (1 layer), ~4MB
-- [topojson/limits_IT_provinces.topo.json](https://github.com/guglielmo/geojson-italy/blob/main/topojson/limits_IT_provinces.topo.json) - all Italian provinces (1 layer)
-- [topojson/limits_IT_regions.topo.json](https://github.com/guglielmo/geojson-italy/blob/main/topojson/limits_IT_regions.topo.json) - all Italian regions (1 layer)
-- topojson/limits_R_{code}_municipalities.topo.json - all municipalities in a region (R is the ISTAT numerical code of the region, for ex: [topojson/limits_R_12_municipalities.topo.json](https://github.com/guglielmo/geojson-italy/blob/main/topojson/limits_R_12_municipalities.topo.json) - Lazio region)
-- topojson/limits_P_{code}_municipalities.topo.json - all munitipalities in a province (P is the ISTAT numerical code of the province, for ex: [topojson/limits_P_58_municipalities.topo.json](https://github.com/guglielmo/geojson-italy/blob/main/topojson/limits_P_58_municipalities.topo.json) - Rome province)
+| File | Contents |
+| --- | --- |
+| [`topojson/limits_IT_all.topo.json`](topojson/limits_IT_all.topo.json) | municipalities, provinces and regions in three layers, ~4 MB |
+| [`topojson/limits_IT_municipalities.topo.json`](topojson/limits_IT_municipalities.topo.json) | municipalities, one layer |
+| [`topojson/limits_IT_provinces.topo.json`](topojson/limits_IT_provinces.topo.json) | provinces |
+| [`topojson/limits_IT_regions.topo.json`](topojson/limits_IT_regions.topo.json) | regions |
+| `topojson/limits_R_{code}_municipalities.topo.json` | municipalities of one region |
+| `topojson/limits_P_{code}_municipalities.topo.json` | municipalities of one province |
 
-Please consider that maps preview for topojson data are not available on github.com; use [mapshaper](https://mapshaper.org) to see the files.
+GitHub previews GeoJSON only below a size limit and never previews TopoJSON; use
+[mapshaper.org](https://mapshaper.org) for the larger files.
 
-# Metadata
-Each geographic area has the following metadata:
-- `name` (M) - the name of the municipality
-- `com_catasto_code` (M) - the cadaster code (H501)
-- `com_istat_code` (M) - the ISTAT code, as text (zero-padded)
-- `com_istat_code_num` (M) - the ISTAT code, as integer
-- `op_id` (M) - the openpolis ID (for integration with legacy OP data)
-- `opdm_id` (M) - the opdm ID (for integration with OPDM data)
-- `minint_elettorale` (M) - interior minister ID
-- `minint_finloc` (M) - interior minister ID used in the financial statements (Finanza Locale)
-- `prov_name` (M,P) - parent province name
-- `prov_istat_code` (M,P) - parent province ISTAT code, as text (zero-padded)
-- `prov_istat_code_num` (M,P) - parent province ISTAT code, as integer
-- `prov_acr` (M,P,R) - parent province acronym (ex: RM)
-- `prov_iso_3166_2` (M,P) - parent province [ISO 3166-2](https://en.wikipedia.org/wiki/ISO_3166-2:IT) code (ex: IT-RM), **or `null`** — see below
-- `reg_name` (M,P,R) - parent region full name
-- `reg_istat_code` (M,P,R) - parent region ISTAT code, as text (zero padded)
-- `reg_istat_code_num` (M,P,R) - parent region ISTAT code, as number
-- `reg_iso_3166_2` (M,P,R) - parent region ISO 3166-2 code (ex: IT-62 for Lazio)
+### Metropolitan cities
 
-Note that ISO numbers the regions on a scheme of its own, unrelated to the ISTAT one:
-Piedmont is ISTAT `01` and ISO `IT-21`.
+Metropolitan cities are second-level units alongside provinces, and they are **inside**
+`limits_IT_provinces` rather than in a layer of their own — Rome is `058`, as it has always
+been here. A separate layer, distinguishing all five ISTAT unit types (Provincia, Provincia
+autonoma, Città metropolitana, Libero consorzio di comuni, Unità non amministrativa), is
+being added with the historical work; it exists already in the temporal dataset as
+`prov_tipo_uts`.
 
-`prov_iso_3166_2` is `null` for five of the 110 second-level units, because ISO 3166-2:IT
-does not currently define a code for them: **Valle d'Aosta** (the region exercises
-provincial functions, so `IT-AO` was deleted in 2019) and the four Sardinian units created
-by the 2026 reform — **Gallura Nord-Est Sardegna**, **Ogliastra**, **Medio Campidano** and
-**Sulcis Iglesiente**. Their vehicle plates match codes ISO withdrew in April 2019, so
-reusing them would assert an identifier the standard no longer defines. 175 municipalities
-are affected; they still carry `reg_iso_3166_2`.
+Note that ISTAT gives metropolitan cities **two** codes and its own products disagree on
+which to show: the boundary shapefiles use `COD_PROV` 112 for Sassari and 118 for Cagliari,
+the codes list uses `COD_UTS` 312 and 318. This repository has always published the
+`COD_PROV` family.
 
-In parenthesis, the contexts where these properties can be found:
-- M: Municipalities,
-- P: Provinces,
-- R: Regions
+### Properties
 
-# Developers
-To generate all files, starting from the `comuni.geojson` file:
+| Property | On | Meaning |
+| --- | --- | --- |
+| `name` | M | municipality name |
+| `com_catasto_code` | M | cadastral (Belfiore) code, e.g. `H501` |
+| `com_istat_code` / `com_istat_code_num` | M | ISTAT code, zero-padded string / integer |
+| `op_id` | M | openpolis id, for integration with legacy OP data |
+| `opdm_id` | M | opdm id |
+| `minint_elettorale` | M | interior ministry id |
+| `minint_finloc` | M | interior ministry id used in Finanza Locale statements |
+| `prov_name` | M, P | province name |
+| `prov_istat_code` / `prov_istat_code_num` | M, P | province ISTAT code |
+| `prov_acr` | M, P, R | province acronym, e.g. `RM` |
+| `prov_iso_3166_2` | M, P | province [ISO 3166-2](https://en.wikipedia.org/wiki/ISO_3166-2:IT) code, e.g. `IT-RM`, **or `null`** |
+| `reg_name` | M, P, R | region name |
+| `reg_istat_code` / `reg_istat_code_num` | M, P, R | region ISTAT code |
+| `reg_iso_3166_2` | M, P, R | region ISO 3166-2 code, e.g. `IT-62` |
+
+M = municipalities, P = provinces, R = regions. Municipality-only properties do not survive
+the dissolve into provinces and regions.
+
+ISO numbers the regions on a scheme of its own, unrelated to ISTAT's: Piedmont is ISTAT `01`
+and ISO `IT-21`.
+
+**`prov_iso_3166_2` is `null` for five of the 110 second-level units, and that is correct.**
+ISO 3166-2:IT defines no code for **Valle d'Aosta** (the region exercises provincial
+functions, so `IT-AO` was deleted in 2019) nor for the four Sardinian units created in 2026
+— **Gallura Nord-Est Sardegna**, **Ogliastra**, **Medio Campidano**, **Sulcis Iglesiente**.
+Those four bear vehicle plates matching codes ISO *withdrew* in April 2019, so filling the
+gap from `prov_acr` would publish identifiers the standard no longer defines. 175
+municipalities are affected; they still carry `reg_iso_3166_2`.
+
+---
+
+## 2. Boundaries at a past date
+
+Administrative geography moves constantly: since 2001 municipalities have merged, split,
+been renumbered and been reassigned to other provinces on **98 distinct dates**, and 72 of
+those fall inside the year. A series published only at 1 January cannot answer for them —
+it returns a plausible, wrong answer with no error.
+
+The historical archive lives in [`temporal/`](temporal/), holds **8,231 municipalities in
+78,325 versions**, and is the repository's source of truth: the current files above are
+derived from it.
+
 ```
-  ./generate_geojson.sh
-  ./generate_topojson.sh
+temporal/
+├── comuni/reg=NN.geojson   one file per region, each feature carrying a validity interval
+├── SCHEMA.md               every field, and what is checked
+└── INDEX.csv               validity interval -> release tag   (not published yet)
 ```
-The [mapshaper client](https://github.com/mbloch/mapshaper), based on [node js](https://nodejs.org/en/), is **required** by the scripts to work. They are known to work with mapshaper `0.6.29` — the version release 2026.1 was generated with — and `0.6.65`.
 
-The `comuni.geojson` file itself is rebuilt from the ISTAT sources:
-```
-  python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-  ./scripts/fetch_sources.sh 2026
-  cp comuni.geojson comuni.geojson.prev
-  .venv/bin/python -m scripts.build_comuni 2026
-  .venv/bin/pytest tests/
-```
-`fetch_sources.sh` downloads the ISTAT boundary edition and `Elenco-comuni-italiani.xlsx`,
-recording the SHA-256 of each. `build_comuni.py` joins them with the previous release, which
-is the only source of the `op_id`, `opdm_id`, `minint_elettorale` and `minint_finloc`
-identifiers; the join key is `com_catasto_code`, since the ISTAT code is not stable across
-provincial reassignment.
+Each feature is one municipality over one validity period. Resolving a date is an interval
+filter, not a search for the nearest snapshot:
 
-Older releases were built by hand following [this wiki page](https://github.com/guglielmo/geojson-italy/wiki/How-to-generate-the-limits-files), which the scripts above supersede.
+```sh
+mapshaper -i temporal/comuni/reg=12.geojson \
+  -filter 'valid_from <= "2021-09-10" && (!valid_to || valid_to > "2021-09-10")' \
+  -o boundaries_2021-09-10.geojson
+```
+
+That example is the point of the whole design. On 10 September 2021 the correct file is
+neither the 2021 nor the 2022 edition: Misiliscemi was established on 20 February 2021, and
+Montecopiolo and Sassofeltrio moved from the Marche to Emilia-Romagna and were recoded
+`099030` and `099031` on 17 June.
+
+**Why GeoJSON rather than a database format.** Parquet would be smaller and directly
+queryable. It is rejected anyway: verifying this archive should require mapshaper, already
+this project's only dependency, not a database engine. Split by region so a change touching
+one region rewrites one file.
+
+Read [`temporal/SCHEMA.md`](temporal/SCHEMA.md) before using it. Three things are not
+self-evident:
+
+- **The key is `terr_key`, the municipality's first cadastral code — never the ISTAT code.**
+  The ISTAT code embeds the province, so it changes on reassignment; the 2026 Sardinian
+  reform changed 377 of them with zero overlap. Measured across the series, exactly one
+  municipality ever changed its own cadastral code and no code was ever reused.
+- **`version_reason` separates administrative change from ISTAT redrawing its own lines.**
+  ISTAT re-generalises its geometry in some editions and not others — 2002, 2010, 2011,
+  2012, 2019, 2022, 2025 — so a naive diff of two adjacent years shows ~7,900 changed
+  boundaries and suggests something historic happened. Filter on this field instead.
+- **Gaps are meaningful.** Baranzate was constituted in 2001, abolished in 2003 when the
+  Constitutional Court struck down the regional law behind it, and constituted again in
+  2004. Its intervals have a hole, on purpose.
+
+The archive is faithful to what ISTAT published for each date, and is not smoothed,
+normalised or reconciled. `source_edition` names the file each geometry was read from, so
+the claim can be checked by downloading it.
+
+> **Coming:** a GitHub Release per change date, with pre-materialised, gzipped assets and
+> `temporal/INDEX.csv` resolving any date to one release — so that obtaining a past date is
+> a download rather than a filter. Until then, use the query above. The existing release
+> tags (`2019`, `2021.1`, `2021.2`, `2022.1`, `2023.1`, `2026.1`, `2026.2`) record what this
+> repository published at those moments, which is a different fact from what ISTAT published
+> for those reference dates; they stay untouched.
+
+---
+
+## Sources
+
+Everything comes from ISTAT, over anonymous HTTP, with **no credentials**.
+
+| Layer | Source |
+| --- | --- |
+| Geometry | The [generalised boundary editions](https://www.istat.it/it/archivio/222527), one per reference date. 26 editions, 2001–2026, checksummed in `build/editions/MANIFEST.json`. |
+| Codes, names, provincial and regional assignment | The SITUAS roster of territorial units, which answers with the complete list of municipalities valid on **any** date since 1948. |
+| Why each version exists, and under which act | The SITUAS variation reports, covering municipal variations from 1991 and suppressions, renamings and code changes from the 1860s. |
+
+Two facts about the sources are load-bearing and easy to get wrong:
+
+- **The census editions do not describe 1 January.** `Limiti2001_g` contains Fonte Nuova,
+  constituted 15 October 2001, and `Limiti2011_g` contains Gravedona ed Uniti, constituted
+  11 February 2011, in place of the three municipalities it replaced. They describe their
+  census date. This is why the series starts on 21 October 2001 rather than in January: for
+  the preceding nine months ISTAT published no boundaries at all, and those dates are not
+  served rather than served with a boundary set that does not describe them.
+- **`-proj wgs84` is required when converting the shapefiles.** The `_WGS84` in the ISTAT
+  filenames names the *datum*; the `.prj` is `WGS_1984_UTM_Zone_32N` in metres.
+
+The two products agree: the municipality count in the boundary edition matches ISTAT's own
+roster for **24 of 26** years, and the two exceptions are the census editions above.
+
+## Reproducing it
+
+Requires [mapshaper](https://github.com/mbloch/mapshaper) (node) — verified against `0.6.29`,
+which generated release 2026.1, and `0.6.65` — and Python 3 for the fetch and build scripts.
+
+```sh
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+
+# the historical archive, from ISTAT to temporal/
+.venv/bin/python -m scripts.fetch_editions            # 26 boundary editions, ~300 MB
+.venv/bin/python -m scripts.fetch_situas variations   # the variation reports
+.venv/bin/python -m scripts.fetch_situas rosters      # the roster at each of the 98 dates
+.venv/bin/python -m scripts.build_temporal build
+.venv/bin/python -m scripts.validate_temporal
+
+# the current vintage, and the files derived from it
+./scripts/fetch_sources.sh 2026
+cp comuni.geojson comuni.geojson.prev
+.venv/bin/python -m scripts.build_comuni 2026
+./generate_geojson.sh
+./generate_topojson.sh
+.venv/bin/pytest tests/
+```
+
+**Please ask SITUAS sparingly.** It answers one request at a time and returns 503 to some
+client addresses for stretches at a time. The fetcher pauses between requests, retries
+slowly, caches everything and takes `--limit N` to spread the first fill across sessions.
+
+The build checks itself. `validate_temporal` verifies that no entity has overlapping
+validity periods, that the municipality count matches ISTAT's roster at every one of the 98
+dates, and that all 377 Sardinian municipalities resolve to the same key across the 2026
+reform — the event that breaks any dataset keyed on the ISTAT code.
+
+Older releases were built by hand following
+[this wiki page](https://github.com/guglielmo/geojson-italy/wiki/How-to-generate-the-limits-files),
+which the scripts above supersede.
+
+## Canonical home
+
+[`guglielmo/geojson-italy`](https://github.com/guglielmo/geojson-italy), previously
+`openpolis/geojson-italy`. The default branch was renamed `master` → `main` in August 2026.
+GitHub redirects both the old owner and the old branch name, `raw.githubusercontent.com`
+included, so existing pinned URLs keep working — but a redirect is a convenience, not a
+guarantee. Update pinned URLs to owner `guglielmo` and branch `main`.
+
+## License and attribution
+
+The administrative limits are copyrighted by **ISTAT** and released under
+[CC-BY](https://creativecommons.org/licenses/by/4.0/). The data generated and published here
+are released under the same licence. Keep the ISTAT attribution when redistributing.
