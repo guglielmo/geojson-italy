@@ -12,12 +12,16 @@ import pytest
 from scripts.build_temporal import (
     NoApplicableEdition,
     applicable_edition,
+    assemble,
     join,
     read_edition_geometries,
+    write_regions,
 )
 
 SQUARE = {"type": "Polygon", "coordinates": [[[7.0, 45.0], [7.1, 45.0],
                                               [7.1, 45.1], [7.0, 45.0]]]}
+NUDGED = {"type": "Polygon", "coordinates": [[[7.0, 45.0], [7.1, 45.0],
+                                              [7.1, 45.100000001], [7.0, 45.0]]]}
 
 ROSTER_ROW = {
     "COD_REG": "01",
@@ -119,6 +123,98 @@ def test_a_geometry_without_a_municipality_is_reported(tmp_path):
 
     _, _, orphans = join("2026-01-01", root=editions, roster_root=rosters)
     assert orphans == ["001002"]
+
+
+def _fixture(tmp_path, rosters_by_date, geometries_by_year):
+    """Write rosters and editions to disk, as the build reads them."""
+    rosters = tmp_path / "rosters"
+    rosters.mkdir()
+    for at, records in rosters_by_date.items():
+        (rosters / f"{at}.json").write_text(json.dumps({"resultset": records}))
+    editions = tmp_path / "editions"
+    for year, geometries in geometries_by_year.items():
+        (editions / str(year)).mkdir(parents=True)
+        (editions / str(year) / "comuni.geojson").write_text(json.dumps({
+            "type": "FeatureCollection",
+            "features": [{"type": "Feature", "properties": {"PRO_COM_T": code},
+                          "geometry": geometry}
+                         for code, geometry in geometries.items()],
+        }))
+    return rosters, editions
+
+
+def test_an_unchanged_municipality_is_one_version_across_editions(tmp_path):
+    """Exact-equality collapsing: ISTAT republishing the same shape is not a
+    new version, and the interval names the edition where it began."""
+    rosters, editions = _fixture(
+        tmp_path,
+        {"2025-01-01": [ROSTER_ROW], "2026-01-01": [ROSTER_ROW]},
+        {2025: {"001001": SQUARE}, 2026: {"001001": SQUARE}},
+    )
+    assembled = assemble(["2025-01-01", "2026-01-01"], {},
+                         root=editions, roster_root=rosters)
+    versions = assembled["A074"]
+    assert len(versions) == 1
+    assert versions[0]["valid_from"] == "2025-01-01"
+    assert versions[0]["valid_to"] is None
+    assert versions[0]["source_edition"] == "Limiti01012025_g"
+
+
+def test_a_geometry_changed_by_a_hair_is_a_second_version(tmp_path):
+    """No tolerance, at any scale: D2 forbids publishing one edition's shape
+    under another edition's date."""
+    rosters, editions = _fixture(
+        tmp_path,
+        {"2025-01-01": [ROSTER_ROW], "2026-01-01": [ROSTER_ROW]},
+        {2025: {"001001": SQUARE}, 2026: {"001001": NUDGED}},
+    )
+    assembled = assemble(["2025-01-01", "2026-01-01"], {},
+                         root=editions, roster_root=rosters)
+    versions = assembled["A074"]
+    assert [(v["valid_from"], v["valid_to"]) for v in versions] == [
+        ("2025-01-01", "2026-01-01"), ("2026-01-01", None)
+    ]
+    assert versions[1]["source_edition"] == "Limiti01012026_g"
+
+
+def test_a_recoded_municipality_keeps_one_key(tmp_path):
+    """The Lonato case, and the Sardinian reform in miniature: the cadastral
+    code changes, the entity does not."""
+    later = {**ROSTER_ROW, "COD_CATASTO": "M312", "COMUNE_IT": "Lonato del Garda"}
+    rosters, editions = _fixture(
+        tmp_path,
+        {"2025-01-01": [ROSTER_ROW], "2026-01-01": [later]},
+        {2025: {"001001": SQUARE}, 2026: {"001001": SQUARE}},
+    )
+    assembled = assemble(["2025-01-01", "2026-01-01"], {"A074": "M312"},
+                         root=editions, roster_root=rosters)
+    assert sorted(assembled) == ["A074"]
+    versions = assembled["A074"]
+    assert len(versions) == 2, "the name and code changed, so the version did"
+    assert versions[1]["properties"]["com_catasto_code"] == "M312"
+
+
+def test_regions_are_written_by_the_region_of_each_version(tmp_path):
+    """A municipality moved between regions has versions in both files.
+
+    Montecopiolo and Sassofeltrio left the Marche for Emilia-Romagna in 2021;
+    filing every version under the current region would misplace the earlier
+    ones.
+    """
+    moved = {**ROSTER_ROW, "COD_REG": "08", "DEN_REG": "Emilia-Romagna"}
+    rosters, editions = _fixture(
+        tmp_path,
+        {"2025-01-01": [ROSTER_ROW], "2026-01-01": [moved]},
+        {2025: {"001001": SQUARE}, 2026: {"001001": SQUARE}},
+    )
+    assembled = assemble(["2025-01-01", "2026-01-01"], {},
+                         root=editions, roster_root=rosters)
+    written = write_regions(assembled, out=tmp_path / "temporal", root=editions)
+    assert sorted(written) == ["01", "08"]
+
+    early = json.loads((tmp_path / "temporal" / "reg=01.geojson").read_text())
+    assert early["features"][0]["properties"]["valid_to"] == "2026-01-01"
+    assert early["features"][0]["geometry"] == SQUARE
 
 
 def test_edition_codes_are_padded(tmp_path):

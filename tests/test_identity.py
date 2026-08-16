@@ -1,91 +1,134 @@
 """Tests for the identity rules of the historical series (issue #25).
 
-The rules under test are the ones that decide what reaches a public archive:
-which key identifies an entity, what gets dropped, and what must fail loudly
-rather than be guessed.
+The rules under test are the ones that decide what an entity *is* and when a
+version of it was valid: which key identifies it across a recoding, and what
+must fail loudly rather than be guessed.
 """
 
 import pytest
 
 from scripts.identity import (
-    ReversedInterval,
-    first_cadastral_code,
-    is_publishable,
-    reversed_intervals,
-    sort_by_validity,
+    AmbiguousIdentity,
+    first_code,
+    identity_links,
+    intervals,
 )
 
 
-def iv(code, frm=None, to=None):
-    return {"identifier": code, "valid_from": frm, "valid_to": to}
+def var(code, old, new):
+    return {
+        "DESC_COD_VARIAZIONE": f"{code}-Descrizione",
+        "COD_CATASTO": old,
+        "COD_CATASTO_REL": new,
+    }
 
 
-def test_first_cadastral_code_of_a_stable_municipality():
-    assert first_cadastral_code([iv("A069")]) == "A069"
+def test_a_renaming_that_changes_the_code_is_an_identity_link():
+    """Lonato -> Lonato del Garda, 2 November 2007: E667 becomes M312.
 
-
-def test_a_null_valid_from_sorts_before_a_dated_one():
-    """The source leaves valid_from null for 'since before records began'.
-
-    Sorting it as the earliest is the only reading that matches the data: the
-    dated rows are all later amendments.
+    The only such record in the series, and the reason terr_key is the *first*
+    code rather than the current one.
     """
-    rows = [iv("M312", "2008-01-01"), iv("E667", None)]
-    assert first_cadastral_code(rows) == "E667"
+    assert identity_links([var("CD", "E667", "M312")]) == {"E667": "M312"}
 
 
-def test_lonato_del_garda_keys_on_its_original_code():
-    """The one municipality holding two cadastral codes.
+def test_a_transfer_of_territory_is_not_an_identity_link():
+    """CE/AQ name the two municipalities either side of a boundary change.
 
-    It was E667 until 2008 and M312 after, alongside its rename. The key is the
-    first code and never changes; com_catasto_code stays a time-scoped
-    attribute, so the two diverge for this entity alone.
+    Reading them as identity would merge unrelated entities wholesale: there
+    are 293 such records with differing codes since 2001, against one real
+    link.
     """
-    rows = [iv("E667", None, "2008-01-01"), iv("M312", "2008-01-01")]
-    assert first_cadastral_code(rows) == "E667"
+    assert identity_links([var("CE", "A794", "G108"),
+                           var("AQ", "G108", "A794")]) == {}
 
 
-def test_no_cadastral_code_yields_none():
-    assert first_cadastral_code([]) is None
+def test_an_extinction_is_not_an_identity_link():
+    """ES and CS relate two different entities, which is the opposite claim."""
+    assert identity_links([var("ES", "C056", "M439")]) == {}
 
 
-def test_sort_by_validity_is_deterministic():
-    """Output ordering must be stable, or every extraction churns the diff."""
-    rows = [iv("C", "2010-01-01"), iv("A", None), iv("B", "2005-01-01")]
-    assert [r["identifier"] for r in sort_by_validity(rows)] == ["A", "B", "C"]
+def test_a_record_that_does_not_change_the_code_links_nothing():
+    assert identity_links([var("CD", "L599", "L599")]) == {}
 
 
-def test_ties_break_on_the_identifier():
-    rows = [iv("B", "2010-01-01"), iv("A", "2010-01-01")]
-    assert [r["identifier"] for r in sort_by_validity(rows)] == ["A", "B"]
+def test_contradictory_links_raise():
+    with pytest.raises(AmbiguousIdentity):
+        identity_links([var("CD", "E667", "M312"), var("CD", "E667", "M999")])
 
 
-def test_reversed_interval_is_detected():
-    rows = [iv("M312", "2008-01-01", "2000-01-01"), iv("E667", None, "2008-01-01")]
-    bad = reversed_intervals(rows)
-    assert len(bad) == 1
-    assert bad[0]["identifier"] == "M312"
+def test_the_key_is_the_first_code_in_the_chain():
+    links = {"E667": "M312"}
+    assert first_code("M312", links) == "E667"
+    assert first_code("E667", links) == "E667"
 
 
-def test_an_open_interval_is_not_reversed():
-    assert reversed_intervals([iv("A069", "2006-01-01", None)]) == []
+def test_a_code_never_renamed_is_its_own_key():
+    assert first_code("A074", {}) == "A074"
 
 
-def test_building_an_interval_from_a_reversed_pair_raises():
-    """Never sort the two dates into order.
+def test_a_longer_chain_walks_all_the_way_back():
+    """Walking backwards keeps published keys stable when a link is added."""
+    assert first_code("C", {"A": "B", "B": "C"}) == "A"
 
-    A reversed pair means the source is wrong about something; picking which
-    end to trust would fabricate a validity period that was never published.
+
+def test_a_cycle_raises_rather_than_looping():
+    with pytest.raises(AmbiguousIdentity):
+        first_code("A", {"A": "B", "B": "A"})
+
+
+def test_two_predecessors_for_one_code_raise():
+    with pytest.raises(AmbiguousIdentity):
+        first_code("C", {"A": "C", "B": "C"})
+
+
+CALENDAR = ["2001-10-21", "2002-01-01", "2003-01-01", "2004-01-01", "2005-01-01"]
+
+
+def test_an_unchanging_entity_is_one_open_interval():
+    versions = {at: "same" for at in CALENDAR}
+    assert intervals(CALENDAR, versions) == [
+        {"valid_from": "2001-10-21", "valid_to": None, "version": "same"}
+    ]
+
+
+def test_a_change_closes_one_interval_and_opens_the_next():
+    versions = {at: ("a" if at < "2003-01-01" else "b") for at in CALENDAR}
+    got = intervals(CALENDAR, versions)
+    assert [(i["valid_from"], i["valid_to"]) for i in got] == [
+        ("2001-10-21", "2003-01-01"), ("2003-01-01", None)
+    ]
+
+
+def test_intervals_meet_exactly_with_no_gap():
+    versions = {at: at for at in CALENDAR}
+    got = intervals(CALENDAR, versions)
+    for earlier, later in zip(got, got[1:]):
+        assert earlier["valid_to"] == later["valid_from"]
+
+
+def test_an_extinct_entity_gets_a_closed_interval():
+    versions = {at: "x" for at in CALENDAR[:2]}
+    assert intervals(CALENDAR, versions) == [
+        {"valid_from": "2001-10-21", "valid_to": "2003-01-01", "version": "x"}
+    ]
+
+
+def test_an_entity_that_returns_gets_a_second_interval():
+    """Baranzate: constituted 2001, extinguished 2003, re-established 2004.
+
+    The gap is a fact about the entity. Bridging it would publish a
+    municipality that did not exist for a year, which is what a reader of
+    extinction records alone produces.
     """
-    with pytest.raises(ReversedInterval):
-        sort_by_validity([iv("X", "2008-01-01", "2000-01-01")], strict=True)
+    versions = {"2001-10-21": "b", "2002-01-01": "b", "2005-01-01": "b"}
+    got = intervals(CALENDAR, versions)
+    assert [(i["valid_from"], i["valid_to"]) for i in got] == [
+        ("2001-10-21", "2003-01-01"), ("2005-01-01", None)
+    ]
 
 
-def test_a_record_with_no_identifiers_is_not_publishable():
-    """MilanoT and RomaT are test rows left in production: typed comune, with
-    no name, no identifier and no dates."""
-    assert not is_publishable({"identifiers": [], "names": []})
-
-
-def test_a_record_with_identifiers_is_publishable():
-    assert is_publishable({"identifiers": [iv("A069")], "names": ["Aggius"]})
+def test_a_version_that_returns_to_an_earlier_value_is_a_new_interval():
+    """A->B->A is three intervals: the archive stores versions by period."""
+    versions = dict(zip(CALENDAR, ["a", "a", "b", "a", "a"]))
+    assert len(intervals(CALENDAR, versions)) == 3

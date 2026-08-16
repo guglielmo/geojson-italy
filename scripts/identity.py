@@ -1,102 +1,137 @@
-"""Identity rules for the historical series (issue #25).
+"""Identity and validity for the historical series (issue #25).
 
-The identity source is a date-framed territorial reconstruction, maintained
-outside this repository, that records which entity is which across mergers,
-recodings and reassignments. It supplies what no shapefile can; geometry comes
-from the ISTAT editions instead (D9, #24).
+Two questions, and the archive's whole design turns on the first:
 
-This module holds the rules that decide what reaches a public archive. They are
-pure functions, testable without a database — the extraction that feeds them
-lives in `extract_identity.py` and needs credentials.
+**Which entity is this?** Not the ISTAT code: the Sardinian reform of 1 January
+2026 changed all 377 Sardinian `com_istat_code` values with zero overlap,
+because the municipal code embeds the province code. The archive keys on the
+entity's **first cadastral (Belfiore) code**, which is assigned by the Agenzia
+delle Entrate and republished by ISTAT, so it is public and checkable — unlike
+an internal row id, which renumbers whenever its database is rebuilt.
 
-**The key is public.** Entities are keyed on their first cadastral (Belfiore)
-code, not on the source's internal row id. That id is a database sequence
-assigned at import: it renumbers whenever the source is rebuilt, and no third
-party can verify it, so an archive keyed on it would not be checkable. The
-cadastral code is assigned by the Agenzia delle Entrate and republished in
-ISTAT's `Elenco-comuni-italiani`. Measured across the source: 8,229 of 8,230
-municipalities hold exactly one for their whole life and no code has ever been
-reused; Lonato del Garda alone holds two (`E667` until 2008, `M312` after),
-which is why the key is the *first* one.
+Measured across the 26 published rosters, 2001 to 2026: 8,231 codes appear,
+exactly one municipality ever changed its own — Lonato, `E667` until its
+renaming to Lonato del Garda in 2007, `M312` after — and no code has ever been
+held by two entities. The one interruption in the series is Baranzate's `A618`,
+absent from the 2004 roster alone, which is a genuine extinction and
+re-establishment rather than a reuse.
 
-**Bad source data fails loudly.** The source holds intervals whose `valid_to`
-precedes `valid_from`. Sorting the two dates into order would invent a validity
-period that was never published, so a reversed interval raises instead.
+Hence `terr_key` is the **first** code and never changes, while
+`com_catasto_code` stays a time-scoped attribute. For every municipality but
+Lonato del Garda the two coincide at every date.
+
+**When was this version valid?** Intervals are built from the publication
+calendar, not read from a source: consecutive dates carrying an identical
+version are one interval, and a date where the entity is absent closes it. A
+municipality that comes back later gets a second interval and not a repaired
+first one — the gap is a fact about the entity, and Baranzate is exactly why.
+
+Nothing here is repaired silently. An identity link that contradicts another,
+or a chain of renamings that loops, raises: which of the two readings is right
+is not recoverable from the data, and choosing one fabricates a history.
 """
 
-from datetime import date
+# Variation codes under which an entity can change its cadastral code while
+# remaining the same entity: a renaming and a code renumbering. Extinctions and
+# constitutions are excluded on purpose — there the two codes belong to two
+# different entities, which is the opposite claim.
+IDENTITY_EVENTS = {"CD", "RN"}
 
-# Sorts before every real date, so a null valid_from reads as "since before
-# records began" — which is how the source uses it.
-_EARLIEST = date.min
 
+class AmbiguousIdentity(ValueError):
+    """Two irreconcilable readings of who an entity is.
 
-class ReversedInterval(ValueError):
-    """An interval whose end precedes its start.
-
-    Raised rather than repaired: which of the two dates is wrong is not
-    recoverable from the data, and choosing one fabricates a validity period.
+    Raised rather than resolved by precedence. A wrong link here silently
+    merges or splits an entity's history, and no consumer can see it.
     """
 
 
-def _as_date(value):
-    if value is None or value == "":
-        return None
-    if isinstance(value, date):
-        return value
-    return date.fromisoformat(str(value)[:10])
+def _code(record, field):
+    value = record.get(field)
+    return str(value).strip() if value else None
 
 
-def _sort_key(row):
-    frm = _as_date(row.get("valid_from"))
-    return (frm or _EARLIEST, str(row.get("identifier") or ""))
+def identity_links(records):
+    """{superseded cadastral code: its successor}, for one and the same entity.
 
-
-def is_reversed(row):
-    """True when the row's interval ends before it starts."""
-    frm = _as_date(row.get("valid_from"))
-    to = _as_date(row.get("valid_to"))
-    return frm is not None and to is not None and to < frm
-
-
-def reversed_intervals(rows):
-    """Every row whose interval is reversed. Reported, never silently fixed."""
-    return [r for r in rows if is_reversed(r)]
-
-
-def sort_by_validity(rows, strict=False):
-    """Order rows by validity start, then identifier.
-
-    Deterministic on purpose: the extraction is a tracked artefact, and an
-    unstable order would churn the diff on every run. With strict=True a
-    reversed interval raises instead of being ordered.
+    Read from the variation reports: a `CD` or `RN` record whose two cadastral
+    codes differ is the same municipality carrying a new code. In the series
+    from 2001 there is exactly one, Lonato's.
     """
-    if strict:
-        for row in rows:
-            if is_reversed(row):
-                raise ReversedInterval(
-                    f"{row.get('identifier')}: valid_to {row.get('valid_to')} "
-                    f"precedes valid_from {row.get('valid_from')}"
-                )
-    return sorted(rows, key=_sort_key)
+    links = {}
+    for record in records:
+        described = record.get("DESC_COD_VARIAZIONE") or record.get("COD_VARIAZIONE") or ""
+        code = str(described).split("-", 1)[0].strip()
+        if code not in IDENTITY_EVENTS:
+            continue
+        old, new = _code(record, "COD_CATASTO"), _code(record, "COD_CATASTO_REL")
+        if not old or not new or old == new:
+            continue
+        if links.get(old, new) != new:
+            raise AmbiguousIdentity(
+                f"{old} is recorded as becoming both {links[old]} and {new}"
+            )
+        links[old] = new
+    return links
 
 
-def first_cadastral_code(rows):
-    """The entity's first cadastral code — its stable public key.
+def first_code(code, links):
+    """Walk an entity's chain of cadastral codes back to the first one.
 
-    Returns None when the entity has none, which in the current data means a
-    stray record or a municipality extinguished before the series begins.
+    That first code is `terr_key`. Walking backwards rather than forwards is
+    what makes the key stable: a future renaming adds a link at the far end and
+    leaves every already-published key untouched.
     """
-    if not rows:
-        return None
-    return sort_by_validity(rows)[0]["identifier"]
+    backwards = {}
+    for old, new in links.items():
+        if backwards.get(new, old) != old:
+            raise AmbiguousIdentity(
+                f"{new} is recorded as succeeding both {backwards[new]} and {old}"
+            )
+        backwards[new] = old
+
+    seen = [code]
+    current = code
+    while current in backwards:
+        current = backwards[current]
+        if current in seen:
+            raise AmbiguousIdentity(
+                f"cadastral codes form a cycle: {' -> '.join(seen + [current])}"
+            )
+        seen.append(current)
+    return current
 
 
-def is_publishable(entity):
-    """Whether an entity belongs in the archive at all.
+def terr_key(code, links):
+    """The archive's public key for the entity holding `code` at some date."""
+    return first_code(code, links)
 
-    An entity carrying no identifier of any scheme is not a municipality anyone
-    can refer to. In the current data this drops exactly two rows, both stray
-    records, and nothing else.
+
+def intervals(calendar, versions):
+    """Collapse a date-indexed series into validity intervals.
+
+    `calendar` is the full publication calendar in order; `versions` maps the
+    dates on which the entity exists to a comparable value — its properties and
+    geometry. Consecutive dates with an equal value become one interval;
+    `valid_to` is exclusive and null while the version is still current.
+
+    Absence is not interpolated. An entity missing from a date ends its
+    interval there, and its return opens a new one, which is how Baranzate's
+    extinction and re-establishment survives the collapse.
     """
-    return bool(entity.get("identifiers"))
+    out = []
+    current = None
+    for at in calendar:
+        value = versions.get(at)
+        if value is None:
+            if current is not None:
+                current["valid_to"] = at
+                current = None
+            continue
+        if current is not None and current["version"] == value:
+            continue
+        if current is not None:
+            current["valid_to"] = at
+        current = {"valid_from": at, "valid_to": None, "version": value}
+        out.append(current)
+    return out
