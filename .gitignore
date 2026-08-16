@@ -6,3 +6,11 @@ __pycache__/
 comuni.geojson.prev
 .venv/
 maps/
+
+# The temporal dataset's data files, until the schema settles. D4 says they
+# belong in git, and they will: committing 349 MB before the schema is final
+# means rewriting all 20 region files when it changes, and the same weight
+# again, permanently, in history. Rebuild them with
+# `python -m scripts.build_temporal build`. SCHEMA.md and INDEX.csv beside them
+# are tracked, because they are documentation and index, not payload.
+temporal/comuni/

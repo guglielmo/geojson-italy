@@ -182,6 +182,113 @@ def creation_at(creations_by_code, code, at):
     return candidates[-1] if candidates else None
 
 
+# Why a version exists. The design's §5 lists six values; two more are added
+# here because the data has cases none of the six describe, and mapping them
+# onto a neighbouring value would misreport them:
+#
+#   admin_cambio_denominazione     a municipality renamed with no other change
+#                                  — 50 records since 1991, Vallecrosia al mare
+#                                  the most recent. Calling it a code change
+#                                  would be false: the code did not change.
+#   admin_variazione_territoriale  a boundary moved by a territory transfer
+#                                  between two municipalities (CE/AQ) or by an
+#                                  absorption. Calling it a re-generalisation
+#                                  would attribute a real administrative act to
+#                                  ISTAT redrawing its own lines, which is the
+#                                  one distinction version_reason exists to make.
+VERSION_REASONS = (
+    "initial",
+    "admin_fusione",
+    "admin_scissione",
+    "admin_cambio_codice",
+    "admin_cambio_denominazione",
+    "admin_riassegnazione",
+    "admin_variazione_territoriale",
+    "source_regeneralization",
+)
+
+# Which variation code implies which reason, when it falls on the version's own
+# start date. Ordered: a date carrying several events takes the first that
+# matches, because the reform of 1 January 2026 is a reassignment that *causes*
+# a renumbering, not two independent facts.
+_REASON_BY_EVENT = (
+    ({"AP", "RNAPUTS", "CDAP"}, "admin_riassegnazione"),
+    ({"RN"}, "admin_cambio_codice"),
+    ({"CD"}, "admin_cambio_denominazione"),
+    ({"CE", "AQ"}, "admin_variazione_territoriale"),
+)
+
+# Events that move a boundary without changing any published attribute. They
+# take effect on their own date, but ISTAT only redraws at the next edition, so
+# they explain a version that starts at an edition date.
+_TERRITORIAL = {"CE", "AQ"}
+
+
+def events_by_key(records, links):
+    """{terr_key: {date: {"own": {codes}, "related": {codes}}}}.
+
+    Both sides are indexed. A municipality that absorbs another appears only as
+    the *related* party of the other's extinction, and that absorption is why
+    its own boundary changes at the next edition.
+
+    Nested by entity rather than keyed on the pair, so that reading one
+    entity's history is a lookup: the flat form turns the window scan below
+    into 78,000 versions against every record in the report.
+    """
+    out = {}
+    for record in records:
+        code = _variation(record)
+        at = str(record.get("DATA_INIZIO_AMMINISTRATIVA") or "")[:10]
+        this, related = _code(record, "COD_CATASTO"), _code(record, "COD_CATASTO_REL")
+        for value, side in ((this, "own"), (related, "related")):
+            if not value:
+                continue
+            entry = out.setdefault(first_code(value, links), {}).setdefault(
+                at, {"own": set(), "related": set()})
+            entry[side].add(code)
+    return out
+
+
+def version_reason(key, at, previous, born, events):
+    """Why this version of `key` begins on `at`.
+
+    `previous` is the start of the preceding version, or None for the first.
+    `source_regeneralization` is a **residual**: it is assigned only when no
+    administrative event accounts for the version, never alongside one. A merger
+    that happens to fall in a re-generalising year is a merger.
+    """
+    creation = creation_at(born, key, at)
+    if previous is None:
+        if creation and creation["date"] == at:
+            return "admin_fusione" if creation["kind"] == "merger" else "admin_scissione"
+        return "initial"
+
+    if creation and creation["date"] == at:
+        # Re-established after an interruption: Baranzate in 2004.
+        return "admin_fusione" if creation["kind"] == "merger" else "admin_scissione"
+
+    history = events.get(key, {})
+    here = history.get(at, {"own": set(), "related": set()})
+    for codes, reason in _REASON_BY_EVENT:
+        if here["own"] & codes:
+            return reason
+    if here["related"] & EXTINCTION_EVENTS:
+        return "admin_fusione"
+
+    # Nothing on the date itself. ISTAT publishes boundaries once a year, so an
+    # event between the two versions shows up only now, at the edition that
+    # redrew them.
+    for when, entry in history.items():
+        if not previous < when <= at:
+            continue
+        if entry["own"] & _TERRITORIAL or entry["related"] & _TERRITORIAL:
+            return "admin_variazione_territoriale"
+        if entry["related"] & EXTINCTION_EVENTS:
+            return "admin_fusione"
+
+    return "source_regeneralization"
+
+
 def intervals(calendar, versions):
     """Collapse a date-indexed series into validity intervals.
 

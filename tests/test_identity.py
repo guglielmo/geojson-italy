@@ -8,12 +8,14 @@ must fail loudly rather than be guessed.
 import pytest
 
 from scripts.identity import (
+    VERSION_REASONS,
     AmbiguousIdentity,
     creation_at,
     creations,
     first_code,
     identity_links,
     intervals,
+    version_reason,
 )
 
 
@@ -136,6 +138,84 @@ def test_a_municipality_constituted_twice_keeps_both_creations():
     assert creation_at(born, "A618", "2003-01-01")["date"] == "2001-12-12"
     assert creation_at(born, "A618", "2005-01-01")["date"] == "2004-06-08"
     assert creation_at(born, "A618", "2001-01-01") is None
+
+
+def test_the_first_version_of_a_pre_existing_municipality_is_initial():
+    assert version_reason("A074", "2001-10-21", None, {}, {}) == "initial"
+
+
+def test_a_municipality_born_of_a_merger_says_so():
+    born = {"M439": [{"date": "2026-02-21", "kind": "merger",
+                      "predecessors": ["C056", "F838"]}]}
+    assert version_reason("M439", "2026-02-21", None, born, {}) == "admin_fusione"
+
+
+def test_a_municipality_born_of_a_detachment_says_so():
+    born = {"M432": [{"date": "2021-02-20", "kind": "detachment",
+                      "predecessors": ["L331"]}]}
+    assert version_reason("M432", "2021-02-20", None, born, {}) == "admin_scissione"
+
+
+def test_a_reassignment_outranks_the_recoding_it_causes():
+    """1 January 2026 in Sardinia is one event, not two: the province changed
+    and the municipal code followed, because the code embeds the province."""
+    events = {"A069": {"2026-01-01": {"own": {"AP", "RN"}, "related": set()}}}
+    assert version_reason("A069", "2026-01-01", "2025-01-01", {}, events) == \
+        "admin_riassegnazione"
+
+
+def test_a_bare_renumbering_is_a_code_change():
+    events = {"F478": {"2021-06-17": {"own": {"RN"}, "related": set()}}}
+    assert version_reason("F478", "2021-06-17", "2021-01-01", {}, events) == \
+        "admin_cambio_codice"
+
+
+def test_a_rename_is_not_reported_as_a_code_change():
+    """Vallecrosia became Vallecrosia al mare with the same code. The design's
+    six values have nothing for this, so a seventh was added rather than
+    reporting a change that did not happen."""
+    events = {"L599": {"2026-05-14": {"own": {"CD"}, "related": set()}}}
+    assert version_reason("L599", "2026-05-14", "2026-01-01", {}, events) == \
+        "admin_cambio_denominazione"
+
+
+def test_absorbing_another_municipality_is_a_merger_for_the_survivor():
+    """The absorber appears only as the related party of the other's
+    extinction, and that is why its own boundary changes."""
+    events = {"F408": {"2026-01-31": {"own": set(), "related": {"ES"}}}}
+    assert version_reason("F408", "2026-01-31", "2026-01-01", {}, events) == \
+        "admin_fusione"
+
+
+def test_a_transfer_between_editions_explains_the_next_version():
+    """CE/AQ move a boundary on a date ISTAT draws nothing for, so the change
+    surfaces at the following edition. Attributing it to re-generalisation
+    would blame ISTAT for an act of parliament."""
+    events = {"A794": {"2024-04-18": {"own": {"CE"}, "related": set()}}}
+    assert version_reason("A794", "2025-01-01", "2024-01-01", {}, events) == \
+        "admin_variazione_territoriale"
+
+
+def test_a_version_with_no_administrative_cause_is_a_regeneralisation():
+    """The residual, and only the residual."""
+    assert version_reason("A074", "2025-01-01", "2024-01-01", {}, {}) == \
+        "source_regeneralization"
+
+
+def test_an_event_outside_the_window_does_not_explain_the_version():
+    events = {"A794": {"2010-02-13": {"own": {"CE"}, "related": set()}}}
+    assert version_reason("A794", "2025-01-01", "2024-01-01", {}, events) == \
+        "source_regeneralization"
+
+
+def test_every_reason_produced_is_in_the_published_vocabulary():
+    cases = [
+        version_reason("A074", "2001-10-21", None, {}, {}),
+        version_reason("A074", "2025-01-01", "2024-01-01", {}, {}),
+        version_reason("A069", "2026-01-01", "2025-01-01", {},
+                       {"A069": {"2026-01-01": {"own": {"AP"}, "related": set()}}}),
+    ]
+    assert set(cases) <= set(VERSION_REASONS)
 
 
 CALENDAR = ["2001-10-21", "2002-01-01", "2003-01-01", "2004-01-01", "2005-01-01"]

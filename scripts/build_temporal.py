@@ -39,9 +39,11 @@ from scripts.change_dates import change_dates, load_variations
 from scripts.identity import (
     creation_at,
     creations,
+    events_by_key,
     identity_links,
     intervals,
     terr_key,
+    version_reason,
 )
 from scripts.istat_editions import SERIES_YEARS, edition_filename, edition_reference_date
 from scripts.rosters import ROSTERS, available, istat_code, read_roster
@@ -151,6 +153,34 @@ def join(at, links=None, root=EDITIONS, roster_root=ROSTERS):
             "geometry": geometry,
         })
     return features, missing, orphans
+
+
+# Identifiers this repository publishes that no ISTAT source holds. They are
+# carried across from the current vintage for entities that still exist, and
+# stay null for the rest — see #31 and the note in SCHEMA.md.
+LEGACY_IDENTIFIERS = ("op_id", "opdm_id", "minint_elettorale", "minint_finloc")
+
+
+def legacy_identifiers(links, path=ROOT / "comuni.geojson"):
+    """{terr_key: {op_id, opdm_id, minint_*}} from the current vintage.
+
+    Joined on the cadastral code and never on the ISTAT code, which is not
+    stable across reassignment — the 377 Sardinian municipalities changed theirs
+    in 2026 with zero overlap. Keying on `terr_key` rather than on the current
+    cadastral code also carries Lonato del Garda's identifiers back to its
+    versions as Lonato, which the raw code would not.
+    """
+    data = json.loads(Path(path).read_text())
+    out = {}
+    for feature in data["features"]:
+        props = feature["properties"]
+        code = props.get("com_catasto_code")
+        if not code:
+            continue
+        out[terr_key(code, links)] = {
+            field: props.get(field) for field in LEGACY_IDENTIFIERS
+        }
+    return out
 
 
 class UnresolvedGeometry(ValueError):
@@ -274,7 +304,7 @@ def _digest(value):
     return hashlib.sha256(blob.encode()).hexdigest()
 
 
-def assemble(calendar, links, creations_by_code, root=EDITIONS,
+def assemble(calendar, links, creations_by_code, events=None, root=EDITIONS,
              roster_root=ROSTERS):
     """Build the validity intervals of every entity over the calendar.
 
@@ -290,6 +320,7 @@ def assemble(calendar, links, creations_by_code, root=EDITIONS,
     version began, which is the file a third party fetches to check it.
     """
     versions = {}
+    events = {} if events is None else events
     creations_by_key = {terr_key(code, links): entries
                         for code, entries in creations_by_code.items()}
     resolved = {}
@@ -324,6 +355,7 @@ def assemble(calendar, links, creations_by_code, root=EDITIONS,
     for key, series in versions.items():
         collapsed = intervals(calendar, {at: (v["properties"], v["geometry_digest"])
                                          for at, v in series.items()})
+        previous = None
         for period in collapsed:
             at = period["valid_from"]
             source = series[at]
@@ -331,15 +363,18 @@ def assemble(calendar, links, creations_by_code, root=EDITIONS,
                 "terr_key": key,
                 "valid_from": at,
                 "valid_to": period["valid_to"],
+                "version_reason": version_reason(
+                    key, at, previous, creations_by_key, events),
                 "properties": source["properties"],
                 "source_edition": source["source_edition"],
                 "edition_year": source["edition_year"],
                 "com_istat_code": source["com_istat_code"],
             })
+            previous = at
     return out
 
 
-def write_regions(assembled, links=None, creations_by_code=None,
+def write_regions(assembled, links=None, creations_by_code=None, legacy=None,
                   out=TEMPORAL, root=EDITIONS, roster_root=ROSTERS):
     """Write one GeoJSON per region, re-reading each edition once.
 
@@ -350,6 +385,7 @@ def write_regions(assembled, links=None, creations_by_code=None,
     region it belonged to at the time.
     """
     links = {} if links is None else links
+    legacy = {} if legacy is None else legacy
     creations_by_key = {terr_key(code, links): entries
                         for code, entries in (creations_by_code or {}).items()}
     resolved = {}
@@ -370,8 +406,14 @@ def write_regions(assembled, links=None, creations_by_code=None,
                 "terr_key": version["terr_key"],
                 "valid_from": version["valid_from"],
                 "valid_to": version["valid_to"],
+                "version_reason": version["version_reason"],
                 "source_edition": version["source_edition"],
                 **version["properties"],
+                # Null for every municipality suppressed before the current
+                # vintage: no ISTAT source holds these, so there is nothing to
+                # carry across for an entity that no longer exists.
+                **{field: None for field in LEGACY_IDENTIFIERS},
+                **legacy.get(version["terr_key"], {}),
             }
             key = version["terr_key"]
             geometry = geometries.get(key)
@@ -412,10 +454,11 @@ def build(root=EDITIONS, roster_root=ROSTERS, out=TEMPORAL):
         )
     links = identity_links(variations)
     born = creations(variations)
-    assembled = assemble(calendar, links, born, root=root,
+    events = events_by_key(variations, links)
+    assembled = assemble(calendar, links, born, events, root=root,
                          roster_root=roster_root)
-    written = write_regions(assembled, links, born, out=out, root=root,
-                            roster_root=roster_root)
+    written = write_regions(assembled, links, born, legacy_identifiers(links),
+                            out=out, root=root, roster_root=roster_root)
 
     versions = sum(len(v) for v in assembled.values())
     total = sum(size for _, size in written.values())
