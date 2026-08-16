@@ -187,7 +187,28 @@ def union(geometries, tmp=None):
     )
     if proc.returncode != 0:
         raise RuntimeError(f"mapshaper failed to dissolve: {proc.stderr.strip()}")
-    return json.loads(target.read_text())["features"][0]["geometry"]
+
+    # gj2008 writes a GeometryCollection when the output carries no properties
+    # and a FeatureCollection when it does, so both shapes are read.
+    result = json.loads(target.read_text())
+    shapes = result.get("geometries")
+    if shapes is None:
+        shapes = [feature["geometry"] for feature in result["features"]]
+
+    # A dissolve normally returns one shape. More than one is legitimate rather
+    # than an error: an exclave stays separate from the body it belongs to, as
+    # it does in ISTAT's own geometries.
+    polygons = []
+    for shape in shapes:
+        if shape["type"] == "Polygon":
+            polygons.append(shape["coordinates"])
+        elif shape["type"] == "MultiPolygon":
+            polygons.extend(shape["coordinates"])
+        else:
+            raise RuntimeError(f"unexpected dissolve output: {shape['type']}")
+    if len(polygons) == 1:
+        return {"type": "Polygon", "coordinates": polygons[0]}
+    return {"type": "MultiPolygon", "coordinates": polygons}
 
 
 def resolve_geometry(key, at, year, geometries, creations_by_key, links,
