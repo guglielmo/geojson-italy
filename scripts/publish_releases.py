@@ -122,12 +122,15 @@ def publish(row, dry_run=True, root=RELEASES):
 def main(argv):
     dry_run = "--yes" not in argv
     limit = int(argv[argv.index("--limit") + 1]) if "--limit" in argv else None
+    wanted = {a for a in argv if a[:1].isdigit()}
 
     rows = read_index()
     published = existing_tags() if not dry_run else set()
     done = 0
     for row in rows:
         if row["release_tag"] in published:
+            continue
+        if wanted and row["release_tag"] not in wanted:
             continue
         publish(row, dry_run=dry_run)
         done += 1
