@@ -130,9 +130,53 @@ been renumbered and been reassigned to other provinces on **98 distinct dates**,
 those fall inside the year. A series published only at 1 January cannot answer for them —
 it returns a plausible, wrong answer with no error.
 
+### Downloading a past date
+
+Each publication date has a GitHub Release tagged with that date, carrying the same shape of
+file set as the root of the repository. Nothing to build, nothing to filter:
+
+```sh
+curl -LO https://github.com/guglielmo/geojson-italy/releases/download/2005-01-01/limits_IT_municipalities.geojson.gz
+```
+
+| Asset | 2005-01-01 |
+| --- | --- |
+| `limits_IT_municipalities.geojson.gz` | 8,101 municipalities |
+| `limits_IT_provinces.geojson.gz` | 103 provinces |
+| `limits_IT_metropolitan_cities.geojson.gz` | 0 — metropolitan cities were instituted in 2015 |
+| `limits_IT_regions.geojson.gz` | 20 regions |
+| `limits_IT_all.topo.json.gz` | the three layers, simplified to 20% |
+
+Provinces and regions are dissolved from the municipalities **of that date**, so the file
+set describes the country as it was, not today's boundaries backdated. Every asset is
+gzipped, which every common tool reads directly.
+
+**Which tag do I want?** For a year, take its **1 January** — `2005-01-01` — which is what
+"the 2005 boundaries" almost always means. If you have an exact date, look it up in
+[`temporal/INDEX.csv`](temporal/INDEX.csv): one row per validity interval, saying which
+release serves it and what changed on that date.
+
+```csv
+valid_from,valid_to,release_tag,municipalities,change
+2005-01-01,2005-05-04,2005-01-01,8101,16 admin_variazione_territoriale
+2005-05-04,2005-05-11,2005-05-04,8101,1 admin_cambio_denominazione
+2005-05-11,2006-01-01,2005-05-11,8101,1 admin_cambio_denominazione
+```
+
+This matters more than it looks. 72 of the 98 dates fall inside the year, so for a date like
+10 September 2021 both the 2021 and the 2022 January editions are wrong — Misiliscemi was
+established on 20 February 2021, and Montecopiolo and Sassofeltrio were recoded on 17 June.
+The index resolves it to `2021-06-17`.
+
+Per-region and per-province subsets (`limits_R_*`, `limits_P_*`) are produced for the current
+vintage only.
+
+### The archive behind them
+
 The historical archive lives in [`temporal/`](temporal/), holds **8,231 municipalities in
-78,325 versions**, and is the repository's source of truth: the current files above are
-derived from it.
+78,325 versions**, and is the repository's source of truth: the current files above and every
+release asset are derived from it. Read it directly only if you want the whole history at
+once — for a single date, take the release.
 
 ```
 temporal/
@@ -141,19 +185,13 @@ temporal/
 └── INDEX.csv               validity interval -> release tag   (not published yet)
 ```
 
-Each feature is one municipality over one validity period. Resolving a date is an interval
-filter, not a search for the nearest snapshot:
+Each feature is one municipality over one validity period, so a date is an interval filter:
 
 ```sh
 mapshaper -i temporal/comuni/reg=12.geojson \
   -filter 'valid_from <= "2021-09-10" && (!valid_to || valid_to > "2021-09-10")' \
   -o boundaries_2021-09-10.geojson
 ```
-
-That example is the point of the whole design. On 10 September 2021 the correct file is
-neither the 2021 nor the 2022 edition: Misiliscemi was established on 20 February 2021, and
-Montecopiolo and Sassofeltrio moved from the Marche to Emilia-Romagna and were recoded
-`099030` and `099031` on 17 June.
 
 **Why GeoJSON rather than a database format.** Parquet would be smaller and directly
 queryable. It is rejected anyway: verifying this archive should require mapshaper, already
@@ -179,12 +217,10 @@ The archive is faithful to what ISTAT published for each date, and is not smooth
 normalised or reconciled. `source_edition` names the file each geometry was read from, so
 the claim can be checked by downloading it.
 
-> **Coming:** a GitHub Release per change date, with pre-materialised, gzipped assets and
-> `temporal/INDEX.csv` resolving any date to one release — so that obtaining a past date is
-> a download rather than a filter. Until then, use the query above. The existing release
-> tags (`2019`, `2021.1`, `2021.2`, `2022.1`, `2023.1`, `2026.1`, `2026.2`) record what this
-> repository published at those moments, which is a different fact from what ISTAT published
-> for those reference dates; they stay untouched.
+The older release tags (`2019`, `2021.1`, `2021.2`, `2022.1`, `2023.1`, `2026.1`, `2026.2`)
+record what this repository published at those moments, which is a different fact from what
+ISTAT published for those reference dates. They stay untouched, and the ISO-date tags cannot
+collide with them.
 
 ---
 

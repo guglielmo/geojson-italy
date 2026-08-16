@@ -15,8 +15,12 @@ per-issue acceptance checks in `tests/`. The province loop bound is now derived 
 data rather than hardcoded: left at `111`, it would have dropped all of Sardinia without
 producing an error.
 
-The substantial work ahead is the historical series — priority 1 below, tracked under the
-`historical-series` milestone.
+**The historical archive now exists.** `temporal/comuni/` holds 8,231 municipalities in
+78,325 versions from 21 October 2001, built from ISTAT alone and tracked in git (D4). Issues
+#24, #25, #26 and #31 are closed; what remains of the milestone is delivery — inverting the
+generation chain (#27), publishing a release per date with `INDEX.csv` (#28), the
+province/region/metropolitan-city layers for any date (#29), the last two validation checks
+(#30) and the consumer documentation (#32).
 
 The repository moved from `openpolis/geojson-italy` to
 [`guglielmo/geojson-italy`](https://github.com/guglielmo/geojson-italy), and the default
@@ -51,6 +55,24 @@ that disagree are the census editions, which describe the census date and not 1 
 the series starts **21 October 2001**, and the archive dates each edition at the date it
 actually describes.
 
+### What the build measured
+
+Everything below came out of building it, and two figures corrected the design.
+
+| | |
+| --- | --- |
+| Entities, versions | 8,231 / 78,325 |
+| Publication dates | **98**, of which 72 intra-year — the design estimated 58 |
+| Municipalities created before ISTAT drew them | **39** across 42 dates, exactly as §6 predicted |
+| Geometries the roster cannot account for | 0, at every date |
+| Working tree / git history | 359 MB / ~93 MB |
+
+**The join is on identity, not on the ISTAT code**, and that was a real defect for a while.
+The ISTAT code embeds the province, so between a reassignment and the next 1 January the
+roster carries the new code while the applicable edition still carries the old one. Joined
+that way, 310 municipalities appeared to have no geometry and 1,539 geometries appeared to
+have no municipality — the same events counted from both sides, and no error anywhere.
+
 Three things shape the design.
 
 **Fidelity to the source, without normalisation.** If ISTAT published a straightened boundary
@@ -73,10 +95,12 @@ missing from the 2004 roster alone, which is the extinction and re-establishment
 a reuse. Rules and tests in `scripts/identity.py`.
 
 **Consumers download files and never run code.** Every one of the 98 change dates from
-October 2001 is pre-materialised and published as release assets, with an index mapping
+October 2001 is to be pre-materialised and published as release assets, with an index mapping
 validity intervals to releases. Publishing only 1 January editions would be wrong rather than
 merely coarse: 72 of those 98 dates fall inside the year, so an annual series returns
-plausible, false answers for them.
+plausible, false answers for them. **This half is not built yet** (#28): today a past date is
+reached by filtering `temporal/comuni/reg=NN.geojson` on the validity interval, which is a
+query and therefore the wrong product for the audience D8 describes.
 
 ### 2. Interoperability with world-geojson (exploratory)
 

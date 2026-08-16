@@ -1,0 +1,99 @@
+valid_from,valid_to,release_tag,municipalities,change
+2001-10-21,2001-12-12,2001-10-21,8101,8101 initial
+2001-12-12,2002-01-01,2001-12-12,8102,1 admin_scissione
+2002-01-01,2002-06-07,2002-01-01,8102,no administrative change
+2002-06-07,2003-01-01,2002-06-07,8102,1 admin_cambio_denominazione
+2003-01-01,2003-03-06,2003-01-01,8101,"9 admin_variazione_territoriale, 1 admin_fusione, 2 soppressi"
+2003-03-06,2003-10-29,2003-03-06,8100,1 soppressi
+2003-10-29,2004-01-01,2003-10-29,8100,1 admin_cambio_denominazione
+2004-01-01,2004-06-08,2004-01-01,8100,"4 admin_variazione_territoriale, 1 admin_fusione"
+2004-06-08,2004-08-14,2004-06-08,8101,1 admin_scissione
+2004-08-14,2005-01-01,2004-08-14,8101,1 admin_cambio_denominazione
+2005-01-01,2005-05-04,2005-01-01,8101,16 admin_variazione_territoriale
+2005-05-04,2005-05-11,2005-05-04,8101,1 admin_cambio_denominazione
+2005-05-11,2006-01-01,2005-05-11,8101,1 admin_cambio_denominazione
+2006-01-01,2007-01-01,2006-01-01,8101,"123 admin_riassegnazione, 12 admin_variazione_territoriale"
+2007-01-01,2007-11-02,2007-01-01,8101,14 admin_variazione_territoriale
+2007-11-02,2008-01-01,2007-11-02,8101,1 admin_cambio_denominazione
+2008-01-01,2008-03-19,2008-01-01,8101,8 admin_variazione_territoriale
+2008-03-19,2008-10-15,2008-03-19,8101,1 admin_cambio_denominazione
+2008-10-15,2009-01-01,2008-10-15,8101,1 admin_cambio_denominazione
+2009-01-01,2009-01-29,2009-01-01,8100,"8 admin_variazione_territoriale, 1 admin_fusione, 2 soppressi"
+2009-01-29,2009-06-30,2009-01-29,8100,no administrative change
+2009-06-30,2009-07-12,2009-06-30,8100,50 admin_riassegnazione
+2009-07-12,2009-07-27,2009-07-12,8100,40 admin_riassegnazione
+2009-07-27,2009-07-30,2009-07-27,8100,10 admin_riassegnazione
+2009-07-30,2009-08-15,2009-07-30,8100,1 admin_cambio_denominazione
+2009-08-15,2009-12-18,2009-08-15,8100,7 admin_riassegnazione
+2009-12-18,2010-01-01,2009-12-18,8100,5 admin_riassegnazione
+2010-01-01,2011-02-11,2010-01-01,8094,"17 admin_variazione_territoriale, 2 admin_fusione, 8 soppressi"
+2011-02-11,2011-10-09,2011-02-11,8092,"1 admin_fusione, 3 soppressi"
+2011-10-09,2012-01-01,2011-10-09,8092,21 admin_variazione_territoriale
+2012-01-01,2012-06-30,2012-01-01,8092,5 admin_variazione_territoriale
+2012-06-30,2013-01-01,2012-06-30,8092,1 admin_cambio_denominazione
+2013-01-01,2013-11-12,2013-01-01,8092,5 admin_variazione_territoriale
+2013-11-12,2013-12-03,2013-11-12,8092,1 admin_cambio_denominazione
+2013-12-03,2013-12-28,2013-12-03,8091,"1 admin_fusione, 2 soppressi"
+2013-12-28,2014-01-01,2013-12-28,8090,"1 admin_fusione, 2 soppressi"
+2014-01-01,2014-02-04,2014-01-01,8071,"14 admin_fusione, 8 admin_variazione_territoriale, 33 soppressi"
+2014-02-04,2014-02-22,2014-02-04,8058,"9 admin_fusione, 22 soppressi"
+2014-02-22,2014-03-08,2014-02-22,8057,"1 admin_fusione, 2 soppressi"
+2014-03-08,2015-01-01,2014-03-08,8057,1 admin_cambio_denominazione
+2015-01-01,2015-01-30,2015-01-01,8048,"8 admin_variazione_territoriale, 5 admin_fusione, 14 soppressi"
+2015-01-30,2015-11-25,2015-01-30,8047,"1 admin_cambio_denominazione, 1 admin_fusione, 2 soppressi"
+2015-11-25,2016-01-01,2015-11-25,8046,1 soppressi
+2016-01-01,2016-02-23,2016-01-01,8003,"26 admin_fusione, 1 admin_variazione_territoriale, 68 soppressi"
+2016-02-23,2016-04-23,2016-02-23,8000,"2 admin_fusione, 5 soppressi"
+2016-04-23,2016-04-28,2016-04-23,7999,1 soppressi
+2016-04-28,2016-06-10,2016-04-28,7999,155 admin_riassegnazione
+2016-06-10,2016-07-01,2016-06-10,7999,"2 admin_variazione_territoriale, 1 admin_cambio_denominazione"
+2016-07-01,2016-12-24,2016-07-01,7998,1 soppressi
+2016-12-24,2017-01-01,2016-12-24,7998,1 admin_cambio_denominazione
+2017-01-01,2017-02-14,2017-01-01,7983,"13 admin_fusione, 23 soppressi"
+2017-02-14,2017-02-17,2017-02-14,7983,1 admin_cambio_denominazione
+2017-02-17,2017-03-01,2017-02-17,7982,"1 admin_fusione, 2 soppressi"
+2017-03-01,2017-03-15,2017-03-01,7981,"1 admin_cambio_denominazione, 1 soppressi"
+2017-03-15,2017-04-18,2017-03-15,7981,1 admin_cambio_denominazione
+2017-04-18,2017-04-20,2017-04-18,7982,1 admin_scissione
+2017-04-20,2017-05-05,2017-04-20,7982,1 admin_cambio_denominazione
+2017-05-05,2017-12-16,2017-05-05,7978,"1 admin_fusione, 5 soppressi"
+2017-12-16,2018-01-01,2017-12-16,7978,1 admin_riassegnazione
+2018-01-01,2018-01-27,2018-01-01,7960,"14 admin_fusione, 6 admin_variazione_territoriale, 31 soppressi"
+2018-01-27,2018-02-01,2018-01-27,7960,1 admin_riassegnazione
+2018-02-01,2018-02-17,2018-02-01,7958,"2 admin_fusione, 4 soppressi"
+2018-02-17,2018-03-31,2018-02-17,7955,"2 admin_fusione, 5 soppressi"
+2018-03-31,2018-12-07,2018-03-31,7954,"1 admin_fusione, 2 soppressi"
+2018-12-07,2019-01-01,2018-12-07,7954,1 admin_cambio_denominazione
+2019-01-01,2019-01-30,2019-01-01,7926,"21 admin_fusione, 8 admin_variazione_territoriale, 1 admin_cambio_denominazione, 44 soppressi"
+2019-01-30,2019-02-01,2019-01-30,7920,"3 admin_fusione, 9 soppressi"
+2019-02-01,2019-02-08,2019-02-01,7919,"1 admin_fusione, 2 soppressi"
+2019-02-08,2019-02-15,2019-02-08,7918,"1 admin_fusione, 2 soppressi"
+2019-02-15,2019-02-20,2019-02-15,7917,"1 admin_fusione, 2 soppressi"
+2019-02-20,2019-02-23,2019-02-20,7915,"2 admin_fusione, 4 soppressi"
+2019-02-23,2019-05-15,2019-02-23,7915,1 admin_cambio_denominazione
+2019-05-15,2019-05-31,2019-05-15,7914,"1 admin_fusione, 2 soppressi"
+2019-05-31,2019-10-11,2019-05-31,7914,1 admin_cambio_denominazione
+2019-10-11,2020-01-01,2019-10-11,7914,1 admin_cambio_denominazione
+2020-01-01,2020-07-01,2020-01-01,7904,"5 admin_fusione, 2 admin_variazione_territoriale, 13 soppressi"
+2020-07-01,2021-01-01,2020-07-01,7903,1 soppressi
+2021-01-01,2021-02-20,2021-01-01,7903,"9 admin_variazione_territoriale, 1 admin_fusione"
+2021-02-20,2021-06-17,2021-02-20,7904,1 admin_scissione
+2021-06-17,2022-01-01,2021-06-17,7904,2 admin_riassegnazione
+2022-01-01,2022-03-03,2022-01-01,7904,2 admin_variazione_territoriale
+2022-03-03,2022-08-12,2022-03-03,7904,1 admin_cambio_denominazione
+2022-08-12,2023-01-01,2022-08-12,7904,1 admin_cambio_denominazione
+2023-01-01,2023-01-17,2023-01-01,7901,"2 admin_fusione, 2 admin_variazione_territoriale, 5 soppressi"
+2023-01-17,2023-04-14,2023-01-17,7901,1 admin_cambio_denominazione
+2023-04-14,2023-07-13,2023-04-14,7901,1 admin_cambio_denominazione
+2023-07-13,2023-10-19,2023-07-13,7901,1 admin_cambio_denominazione
+2023-10-19,2023-11-18,2023-10-19,7901,1 admin_cambio_denominazione
+2023-11-18,2024-01-01,2023-11-18,7900,"1 admin_cambio_denominazione, 1 soppressi"
+2024-01-01,2024-01-22,2024-01-01,7899,"1 admin_fusione, 2 soppressi"
+2024-01-22,2025-01-01,2024-01-22,7896,"3 admin_fusione, 6 soppressi"
+2025-01-01,2025-06-13,2025-01-01,7896,10 admin_variazione_territoriale
+2025-06-13,2025-10-10,2025-06-13,7896,1 admin_cambio_denominazione
+2025-10-10,2026-01-01,2025-10-10,7896,1 admin_cambio_denominazione
+2026-01-01,2026-01-31,2026-01-01,7896,"222 admin_cambio_codice, 155 admin_riassegnazione"
+2026-01-31,2026-02-21,2026-01-31,7895,1 soppressi
+2026-02-21,2026-05-14,2026-02-21,7894,"1 admin_fusione, 2 soppressi"
+2026-05-14,,2026-05-14,7894,1 admin_cambio_denominazione
