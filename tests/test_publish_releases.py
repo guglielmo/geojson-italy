@@ -44,12 +44,16 @@ def test_the_body_keeps_the_attribution():
 
 
 def test_nothing_is_published_without_yes(monkeypatch, capsys):
-    """A dry run must not reach gh at all — 98 public releases is not
-    something to discover after the fact."""
+    """A dry run may look at what is already published; it must not write.
+
+    98 public releases is not something to discover after the fact, so the
+    guard is on the command that creates them, not on reading the list.
+    """
     def fail(*args, **kwargs):
         raise AssertionError("publishing attempted during a dry run")
 
     monkeypatch.setattr("scripts.publish_releases.subprocess.run", fail)
+    monkeypatch.setattr("scripts.publish_releases.existing_tags", set)
     monkeypatch.setattr("scripts.publish_releases.read_index", lambda: [ROW])
     monkeypatch.setattr("scripts.publish_releases.assets_for",
                         lambda tag, root=None: [])

@@ -19,6 +19,7 @@ Usage:
     python -m scripts.publish_releases                  # dry run, all dates
     python -m scripts.publish_releases --yes --limit 1  # publish one, to look at it
     python -m scripts.publish_releases --yes            # publish the rest
+    python -m scripts.publish_releases --yes --replace  # re-upload corrected assets
 """
 
 import csv
@@ -100,39 +101,56 @@ def assets_for(tag, root=RELEASES):
     return paths
 
 
-def publish(row, dry_run=True, root=RELEASES):
+def publish(row, dry_run=True, root=RELEASES, replace=False):
+    """Create the release, or replace the assets of one that already exists.
+
+    Replacing matters because an asset can be wrong after it is published: the
+    first upload of this series carried Italian-only names for the 124
+    bilingual municipalities and no ISO codes at all. A release whose assets
+    cannot be corrected is a release nobody can trust.
+    """
     tag = row["release_tag"]
     paths = assets_for(tag, root=root)
-    command = [
-        "gh", "release", "create", tag,
-        "--title", f"Boundaries valid from {row['valid_from']}",
-        "--notes", notes(row),
-        *[str(p) for p in paths],
-    ]
+    if replace:
+        command = ["gh", "release", "upload", tag,
+                   *[str(p) for p in paths], "--clobber"]
+        verb = "would replace the assets of"
+    else:
+        command = [
+            "gh", "release", "create", tag,
+            "--title", f"Boundaries valid from {row['valid_from']}",
+            "--notes", notes(row),
+            *[str(p) for p in paths],
+        ]
+        verb = "would publish"
     if dry_run:
         total = sum(p.stat().st_size for p in paths)
-        print(f"would publish {tag}  {len(paths)} assets, "
+        print(f"{verb} {tag}  {len(paths)} assets, "
               f"{total / 1048576:5.1f} MB  ({row['change']})")
         return None
     subprocess.run(command, check=True, cwd=ROOT, capture_output=True, text=True)
-    print(f"published {tag}")
+    print(f"{'replaced' if replace else 'published'} {tag}")
     return tag
 
 
 def main(argv):
     dry_run = "--yes" not in argv
+    replace = "--replace" in argv
     limit = int(argv[argv.index("--limit") + 1]) if "--limit" in argv else None
     wanted = {a for a in argv if a[:1].isdigit()}
 
     rows = read_index()
-    published = existing_tags() if not dry_run else set()
+    published = existing_tags()
     done = 0
     for row in rows:
-        if row["release_tag"] in published:
+        already = row["release_tag"] in published
+        if already and not replace:
+            continue
+        if replace and not already:
             continue
         if wanted and row["release_tag"] not in wanted:
             continue
-        publish(row, dry_run=dry_run)
+        publish(row, dry_run=dry_run, replace=replace)
         done += 1
         if limit and done >= limit:
             break
