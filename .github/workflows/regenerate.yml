@@ -1,0 +1,122 @@
+# Regenerate the published files from comuni.geojson.
+#
+# The 287 files under geojson/ and topojson/ are a pure function of
+# comuni.geojson and the two generation scripts, and the whole regeneration
+# takes about five minutes on a standard runner. So this workflow exists for
+# the property, not for the minutes: on a pull request it regenerates and
+# fails if the result differs from what is committed.
+#
+# That is the guard the repository was missing. The published paths are a
+# public API pinned by third parties on raw.githubusercontent.com, and the
+# failure mode worth catching is a published file edited by hand, or one
+# regenerated from a comuni.geojson that was not the one committed alongside
+# it. Either leaves the tree internally inconsistent in a way no test looks at.
+name: regenerate
+
+on:
+  pull_request:
+    paths:
+      - comuni.geojson
+      - generate_geojson.sh
+      - generate_topojson.sh
+      - geojson/**
+      - topojson/**
+      - .github/workflows/regenerate.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: regenerate-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pinned, because this workflow asserts byte-equality against a tree that
+  # some specific version produced. 0.6.29 generated release 2026.1 and 0.6.65
+  # reproduces it byte for byte; an unpinned "latest" would turn any upstream
+  # change in mapshaper's output into a failure on an unrelated pull request.
+  MAPSHAPER_VERSION: 0.6.65
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      # Written to only by the push step, which runs on workflow_dispatch.
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install mapshaper
+        run: |
+          npm install --global "mapshaper@${MAPSHAPER_VERSION}"
+          mapshaper --version
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: pip install --requirement requirements.txt
+
+      - name: Regenerate
+        run: |
+          ./generate_geojson.sh
+          ./generate_topojson.sh
+
+      # The counts these assert are what a silent feature loss looks like:
+      # issue #34 shipped for at least two releases because a municipality
+      # dropped by -clean shows up as nothing but a number being one lower.
+      # Only the tests that read the published tree run here; the rest of the
+      # suite needs the SITUAS payloads under build/, which are not in the
+      # repository.
+      - name: Check the regenerated tree
+        run: |
+          pytest -q \
+            tests/test_published_layers.py \
+            tests/test_published_schema.py \
+            tests/test_release_2026_1.py \
+            tests/test_release_2026_2.py
+
+      # `git status --porcelain` rather than `git diff`, because a new file is
+      # the interesting case and `git diff` is blind to it: the province loop
+      # runs to a bound read from the data, so a vintage that renumbers
+      # provinces upwards — as 2026 did, to 119 — emits files that exist
+      # nowhere in the committed tree.
+      - name: Compare with what is committed
+        id: diff
+        run: |
+          if [ -z "$(git status --porcelain -- geojson topojson)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "The regenerated tree matches what is committed."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git status --short -- geojson topojson | head -40
+            git diff --stat -- geojson topojson | tail -5
+          fi
+
+      - name: Fail if the committed tree is stale
+        if: github.event_name == 'pull_request' && steps.diff.outputs.changed == 'true'
+        run: |
+          echo "::error::The files under geojson/ and topojson/ are not what" \
+               "the generation scripts produce from the committed" \
+               "comuni.geojson. Run ./generate_geojson.sh and" \
+               "./generate_topojson.sh and commit the result — do not edit" \
+               "published files by hand."
+          exit 1
+
+      - name: Commit the regenerated tree
+        if: github.event_name == 'workflow_dispatch' && steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add geojson topojson
+          git commit --message 'Regenerate the published files from comuni.geojson' \
+                     --message "mapshaper ${MAPSHAPER_VERSION}, ${GITHUB_WORKFLOW} run ${GITHUB_RUN_ID}."
+          git push origin "HEAD:${GITHUB_REF_NAME}"

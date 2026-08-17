@@ -27,6 +27,14 @@ identical to the published file bar two added properties — the metropolitan-ci
 at the root and at every date, and all five fidelity checks pass, including the round trip
 that verifies 78,289 versions vertex for vertex against the ISTAT file each one names.
 
+**The published tree is now checked against its own source.** `.github/workflows/regenerate.yml`
+regenerates all 287 files under `geojson/` and `topojson/` from `comuni.geojson` and fails a
+pull request whose committed output does not match — a hand-edited published file, or one
+generated from a different `comuni.geojson`, no longer passes silently. The whole
+regeneration is about five minutes on a standard runner, and mapshaper is pinned because the
+check asserts byte-equality: 0.6.65 reproduces the tree 0.6.29 produced for `2026.1`, byte
+for byte.
+
 The repository moved from `openpolis/geojson-italy` to
 [`guglielmo/geojson-italy`](https://github.com/guglielmo/geojson-italy), and the default
 branch was renamed `master` → `main` in August 2026. GitHub redirects both, on
@@ -151,9 +159,15 @@ ISTAT publishes the 1 January 2027 edition around March 2027; all three will be 
 
 ## Known defects in the current release
 
-| Ref | Defect |
-| --- | --- |
-| — | `topojson/limits_IT_all.topo.json` carries **7,895** municipalities against 7,896 everywhere else: Miagliano (096034, Biella, 0.7 km²) is dropped. It survives in `limits_IT_municipalities.topo.json`, so only the combined file is affected. Preexisting, not a 2026.1 regression — the 2023 release lost exactly one municipality the same way (7,898 of 7,899). Cause is the `-clean` that follows the 20% simplification in the second mapshaper invocation of `generate_topojson.sh`. Not fixed here because the generation chain is due to be replaced wholesale by the `historical-series` milestone; file an issue so it is not lost. |
+**None.** The one entry this section held — #34, `limits_IT_all.topo.json` carrying 7,895
+municipalities against 7,896 everywhere else, Miagliano (096034, Biella, 0.7 km²) dropped by
+the `-clean` that followed the 20% simplification — was fixed by removing that second
+`-clean`, and the combined file now carries 7,896 municipalities, 110 provinces and 20
+regions. The defect had shipped since at least the 2023 release, where it cost exactly one
+municipality the same way, because a layer losing a feature looks like nothing but a count
+being one lower. `tests/test_published_layers.py` now asserts the counts, and the
+`regenerate` workflow runs those assertions on every pull request that touches the published
+tree.
 
 ## Traps worth keeping
 
